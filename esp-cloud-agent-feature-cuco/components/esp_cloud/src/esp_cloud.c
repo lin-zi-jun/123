@@ -24,6 +24,8 @@
 #include "esp_cloud_time_sync.h"
 #include "esp_cloud_storage.h"
 #include "esp_cloud_platform.h"
+#include <freertos/event_groups.h>
+#include "app_auth_user.h"
 
 static const char *TAG = "esp_cloud";
 
@@ -38,7 +40,11 @@ static const char *TAG = "esp_cloud";
 
 #define ESP_CLOUD_TASK_STACK  6 * 1024
 
+extern int _status_code;    /*!< status code (integer) */
+extern const int AUTH_DONE_BIT;
 esp_cloud_internal_handle_t *g_cloud_handle;
+extern EventGroupHandle_t cm_event_group;
+extern int32_t user_bind_flag;
 /* Initialize the Cloud by setting proper fields in the handle and allocating memory */
 esp_err_t esp_cloud_init(esp_cloud_config_t *config, esp_cloud_handle_t *handle)
 {
@@ -374,7 +380,7 @@ static esp_err_t esp_cloud_report_device_info(esp_cloud_internal_handle_t *handl
 
 }
 
-static esp_err_t esp_cloud_report_user_bind_info(esp_cloud_internal_handle_t *handle)
+static esp_err_t esp_cloud_report_user_bind_info(esp_cloud_internal_handle_t *handle,int code)
 {
     if (!handle) {
         return ESP_FAIL;
@@ -390,10 +396,9 @@ static esp_err_t esp_cloud_report_user_bind_info(esp_cloud_internal_handle_t *ha
     json_push_object(&jstr,"result");
     json_obj_set_string(&jstr, "device_id", handle->device_id);
     json_obj_set_string(&jstr, "func","bind");
-    json_obj_set_int(&jstr,"code",200);
-    json_obj_set_string(&jstr, "msg","Binding success");
+    json_obj_set_int(&jstr,"code",code);
+    json_obj_set_string(&jstr, "msg",((code==200) ? "bind success" : "bind fail"));
     json_pop_object(&jstr);
-    // esp_cloud_report_static_params(handle, &jstr);
     json_end_object(&jstr);
     json_str_end(&jstr);
     char publish_topic[100];
@@ -435,10 +440,15 @@ static void esp_cloud_task(void *param)
         ESP_LOGE(TAG, "esp_cloud_platform_connect() returned %d. Aborting", err);
         vTaskDelete(NULL);
     }/* TODO: Error handling */
+
     esp_cloud_platform_register_dynamic_params(handle); /* TODO: Error handling */
     esp_cloud_report_device_info(handle);
     esp_cloud_report_device_state(handle);
-    esp_cloud_report_user_bind_info(handle);
+
+    if(user_bind_flag == NOTICE_BINDED){
+        esp_cloud_report_user_bind_info(handle,_status_code);
+    }
+    
     while (!handle->cloud_stop) {
         esp_cloud_handle_work_queue(handle);
         esp_cloud_platform_wait(handle);
