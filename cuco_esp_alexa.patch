@@ -1,0 +1,311 @@
+diff --git a/examples/amazon_alexa/main/app_cloud.c b/examples/amazon_alexa/main/app_cloud.c
+new file mode 100644
+index 0000000..f8ab774
+--- /dev/null
++++ b/examples/amazon_alexa/main/app_cloud.c
+@@ -0,0 +1,98 @@
++// Copyright 2018 Espressif Systems (Shanghai) PTE LTD
++// All rights reserved.
++
++#include "sdkconfig.h"
++
++#ifdef CONFIG_ALEXA_ENABLE_OTA
++
++#include <esp_cloud_storage.h>
++#include <esp_cloud_ota.h>
++#include <esp_https_ota.h>
++
++#include <esp_log.h>
++#include <esp_timer.h>
++#include <voice_assistant.h>
++#include <va_led.h>
++#include <alexa_local_config.h>
++#include "app_cloud.h"
++
++static const char *TAG = "[app_cloud]";
++
++static esp_cloud_handle_t esp_cloud_handle;
++
++esp_err_t app_cloud_perform(esp_cloud_ota_handle_t ota_handle, const char *url, void *priv)
++{
++    va_led_set(LED_OFF);
++    alexa_local_config_stop();
++    va_reset();
++    va_led_set(LED_OTA);
++    ESP_LOGI(TAG, "app_cloud_perform called");
++    if (!url) {
++        return ESP_FAIL;
++    }
++    char *ota_server_cert = esp_cloud_storage_get("ota_server_cert");
++    if (!ota_server_cert) {
++        esp_cloud_report_ota_status(ota_handle, OTA_STATUS_FAILED, "Server Certificate Absent");
++        return ESP_FAIL;
++    }
++    esp_http_client_config_t config = {
++        .url = url,
++        .cert_pem = ota_server_cert,
++        .buffer_size = 1024
++    };
++
++    esp_err_t err = esp_https_ota(&config);
++    free(ota_server_cert);
++    va_led_set(LED_OFF);
++    if (err == ESP_OK) {
++        esp_cloud_report_ota_status(ota_handle, OTA_STATUS_SUCCESS, "Finished Successfully");
++    } else {
++        char info[50];
++        snprintf(info, sizeof(info), "esp_https_ota failed with %d: %s", err, esp_err_to_name(err));
++        esp_cloud_report_ota_status(ota_handle, OTA_STATUS_FAILED, info);
++    }
++    return err;
++}
++
++static esp_err_t output_callback(const char *name, esp_cloud_param_val_t *param, void *priv_data)
++{
++    // app_driver_set_state(param->val.b);
++    ESP_LOGI(TAG, "**************************************************************");
++    ESP_LOGI(TAG, "********************** Device turned %s **********************", param->val.b? "ON" : "OFF");
++    ESP_LOGI(TAG, "**************************************************************");
++    if (priv_data) {
++        ESP_LOGI(TAG, "Priv data: %s\n", (char *)priv_data);
++    }
++    return ESP_OK;
++}
++
++void app_cloud_init()
++{
++    ESP_LOGI(TAG, "Initializing Cloud Agent");
++    esp_cloud_config_t cloud_cfg = {
++        .id = {
++            .name = "Alexa Smart Switch",
++            .type = "Speaker with Switch",
++            .model = "ESP-Alexa-Switch",
++            .fw_version = "1.0",
++        },
++        .enable_time_sync = true,
++        .reconnect_attempts = 5,
++        .dynamic_cloud_params_count = 1,
++    };
++    esp_cloud_init(&cloud_cfg, &esp_cloud_handle);
++
++    ESP_LOGI(TAG, "Cloud Agent Initialized");
++}
++
++void app_cloud_start()
++{
++    ESP_LOGI(TAG, "Connecting to Cloud");
++    esp_cloud_enable_ota(esp_cloud_handle, app_cloud_perform, NULL);
++
++    esp_cloud_add_dynamic_bool_param(esp_cloud_handle, "output", false, output_callback, NULL);
++
++    esp_cloud_start(esp_cloud_handle);
++}
++
++#endif /* CONFIG_ALEXA_ENABLE_OTA */
+diff --git a/examples/amazon_alexa/main/app_ota.h b/examples/amazon_alexa/main/app_cloud.h
+similarity index 79%
+rename from examples/amazon_alexa/main/app_ota.h
+rename to examples/amazon_alexa/main/app_cloud.h
+index 87f9080..9e7f153 100644
+--- a/examples/amazon_alexa/main/app_ota.h
++++ b/examples/amazon_alexa/main/app_cloud.h
+@@ -6,5 +6,6 @@
+ #include "sdkconfig.h"
+ 
+ #ifdef CONFIG_ALEXA_ENABLE_OTA
+-void app_ota_init();
++void app_cloud_init();
++void app_cloud_start();
+ #endif /* CONFIG_ALEXA_ENABLE_OTA */
+diff --git a/examples/amazon_alexa/main/app_main.c b/examples/amazon_alexa/main/app_main.c
+index 8526e84..94b14e1 100644
+--- a/examples/amazon_alexa/main/app_main.c
++++ b/examples/amazon_alexa/main/app_main.c
+@@ -38,7 +38,7 @@
+ #endif
+ 
+ #ifdef CONFIG_ALEXA_ENABLE_OTA
+-#include "app_ota.h"
++#include "app_cloud.h"
+ #endif
+ 
+ #define SOFTAP_SSID_PREFIX  "ESP-Alexa-"
+@@ -110,6 +110,25 @@ void app_prov_done_cb()
+     xEventGroupSetBits(cm_event_group, PROV_DONE_BIT);
+ }
+ 
++extern int esp_cloud_user_assoc_handler(uint32_t session_id, const uint8_t *inbuf, ssize_t inlen, uint8_t **outbuf, ssize_t *outlen, void *priv_data);
++int app_conn_mgr_prov_cb(void *user_data, conn_mgr_cb_event_t event)
++{
++    alexa_conn_mgr_prov_cb(user_data, event);
++    switch (event) {
++        case CM_ENDPOINT_CONFIG:
++            conn_mgr_prov_endpoint_configure("cloud_user_assoc");
++            break;
++
++        case CM_ENDPOINT_ADD:
++            conn_mgr_prov_endpoint_add("cloud_user_assoc", esp_cloud_user_assoc_handler, NULL);
++            break;
++
++        default:
++            break;
++    }
++    return 0;
++}
++
+ void app_main()
+ {
+     ESP_LOGI(TAG, "==== Voice Assistant SDK version: %s ====", va_get_sdk_version());
+@@ -121,7 +140,7 @@ void app_main()
+         ESP_LOGE(TAG, "Failed to alloc voice assistant config");
+         abort();
+     }
+-
++    va_cfg->product_id = "esp_avs_master";
+     esp_err_t ret = nvs_flash_init();
+     if (ret == ESP_ERR_NVS_NO_FREE_PAGES) {
+         ESP_ERROR_CHECK(nvs_flash_erase());
+@@ -148,6 +167,11 @@ void app_main()
+ 
+     printf("\r");       // To remove a garbage print ">>"
+     auth_delegate_init(alexa_signin_handler, alexa_signout_handler);    // This is specific to the sdk. Do not modify.
++#ifdef CONFIG_ALEXA_ENABLE_OTA
++    /* Doing OTA init after full alexa boot-up. */
++    app_cloud_init();
++#endif
++
+     bool provisioned = false;
+     if (conn_mgr_prov_is_provisioned(&provisioned) != ESP_OK) {
+         ESP_LOGE(TAG, "Error getting device provisioning state");
+@@ -169,7 +193,7 @@ void app_main()
+         va_led_set(LED_RESET);
+         printf("%s: Starting provisioning\n", TAG);
+         conn_mgr_prov_t prov_type = conn_mgr_prov_mode_ble;
+-        prov_type.event_cb = alexa_conn_mgr_prov_cb;
++        prov_type.event_cb = app_conn_mgr_prov_cb;
+         prov_type.cb_user_data = (void *)va_cfg;
+         int security = 1;
+         const char *pop = "abcd1234";
+@@ -212,7 +236,7 @@ void app_main()
+ 
+ #ifdef CONFIG_ALEXA_ENABLE_OTA
+     /* Doing OTA init after full alexa boot-up. */
+-    app_ota_init();
++    app_cloud_start();
+ #endif
+ 
+     /* This is only supported with minimum flash size of 8MB. */
+diff --git a/examples/amazon_alexa/main/app_ota.c b/examples/amazon_alexa/main/app_ota.c
+deleted file mode 100644
+index 97a7f33..0000000
+--- a/examples/amazon_alexa/main/app_ota.c
++++ /dev/null
+@@ -1,81 +0,0 @@
+-// Copyright 2018 Espressif Systems (Shanghai) PTE LTD
+-// All rights reserved.
+-
+-#include "sdkconfig.h"
+-
+-#ifdef CONFIG_ALEXA_ENABLE_OTA
+-
+-#include <cloud_agent.h>
+-
+-#include <esp_log.h>
+-#include <esp_timer.h>
+-#include <voice_assistant.h>
+-#include <va_led.h>
+-#include <alexa_local_config.h>
+-#include "app_ota.h"
+-
+-#define OTA_CHECK_TIME (10 * 1000)      // 10 seconds
+-
+-static const char *TAG = "[app_ota]";
+-
+-static bool ota_started;
+-
+-static void app_ota_timer_cb(void *arg)
+-{
+-    if (ota_started == false) {
+-        ESP_LOGI(TAG, "No OTA update. Stopping check for OTA.");
+-        cloud_agent_ota_stop();
+-    }
+-}
+-
+-static void app_ota_start_timer()
+-{
+-    ESP_LOGI(TAG, "Starting OTA timer for 10 seconds.");
+-    esp_timer_handle_t app_ota_timer_handle;
+-    esp_timer_create_args_t timer_arg = {
+-        .callback = app_ota_timer_cb,
+-        .dispatch_method = ESP_TIMER_TASK,
+-        .name = "app_ota_timer",
+-    };
+-    if (esp_timer_create(&timer_arg, &app_ota_timer_handle) != ESP_OK) {
+-        ESP_LOGE(TAG, "Failed to create timer for OTA");
+-        return;
+-    }
+-    esp_timer_start_once(app_ota_timer_handle, OTA_CHECK_TIME * 1000);
+-}
+-
+-static void app_ota_cloud_agent_cb(cloud_agent_event_t event)
+-{
+-    switch (event) {
+-        case CLOUD_AGENT_INIT_DONE:
+-            app_ota_start_timer();
+-            break;
+-
+-        case CLOUD_AGENT_OTA_START:
+-            ota_started = true;
+-            va_led_set(LED_OFF);
+-            alexa_local_config_stop();
+-            va_reset();
+-            va_led_set(LED_OTA);
+-            break;
+-
+-        case CLOUD_AGENT_OTA_END:
+-            va_led_set(LED_OFF);
+-            break;
+-    }
+-}
+-
+-void app_ota_init()
+-{
+-    cloud_agent_device_cfg_t cloud_agent_device_cfg = {
+-        .name = "ESP Alexa",
+-        .type = "Speaker",
+-        .model = "ESP-Alexa",
+-        .fw_version = "1.0",
+-    };
+-
+-    cloud_agent_ota_start(&cloud_agent_device_cfg, app_ota_cloud_agent_cb);
+-    ESP_LOGI(TAG, "OTA Init done.");
+-}
+-
+-#endif /* CONFIG_ALEXA_ENABLE_OTA */
+diff --git a/examples/amazon_alexa/sdkconfig.defaults b/examples/amazon_alexa/sdkconfig.defaults
+index 459b605..b8813de 100644
+--- a/examples/amazon_alexa/sdkconfig.defaults
++++ b/examples/amazon_alexa/sdkconfig.defaults
+@@ -52,6 +52,11 @@ CONFIG_TIMER_TASK_STACK_SIZE=4096
+ CONFIG_ESP32_PANIC_GDBSTUB=y
+ CONFIG_TASK_WDT_PANIC=y
+ 
++#
++# Voice Assistant Configurations
++#
++CONFIG_ALEXA_ENABLE_OTA=y
++
+ #
+ # Wi-Fi
+ #
+@@ -88,8 +93,8 @@ CONFIG_FREERTOS_WATCHPOINT_END_OF_STACK=y
+ #
+ # Log output
+ #
+-CONFIG_LOG_DEFAULT_LEVEL_WARN=y
+-CONFIG_LOG_DEFAULT_LEVEL=2
++CONFIG_LOG_DEFAULT_LEVEL_INFO=y
++CONFIG_LOG_DEFAULT_LEVEL=3
+ 
+ #
+ # LWIP

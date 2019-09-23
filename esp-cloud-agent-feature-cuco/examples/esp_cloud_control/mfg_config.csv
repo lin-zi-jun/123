@@ -1,0 +1,8 @@
+key,type,encoding,value
+cloud,namespace,,
+device_id,file,binary,main/cloud_cfg/device.info
+mqtt_host,file,binary,main/cloud_cfg/endpoint.info
+client_cert,file,binary,main/cloud_cfg/device.crt
+client_key,file,binary,main/cloud_cfg/device.key
+server_cert,file,binary,main/cloud_cfg/server.crt
+ota_server_cert,file,binary,main/cloud_cfg/ota_server.crt

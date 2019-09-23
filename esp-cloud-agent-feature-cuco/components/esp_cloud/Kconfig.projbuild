@@ -1,0 +1,16 @@
+menu "ESP Cloud OTA Config"
+
+config ESP_CLOUD_OTA_USE_DYNAMIC_PARAMS
+    bool "ESP Cloud OTA Use Dynamic params"
+    default true
+    help
+        Use the ESP Cloud dynamic paramters instead of plain MQTT for getting an OTA
+
+config ESP_CLOUD_USE_SPIRAM_FOR_ALLOCATIONS
+    bool "ESP Cloud Use SPIRAM For Allocations"
+    default y
+    depends on SPIRAM_SUPPORT
+    help
+        Use SPIRAM for allocations instead of Internal RAM
+
+endmenu
