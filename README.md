@@ -1,0 +1,1 @@
+esp_alexa_smart_switch_combo
