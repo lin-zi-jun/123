@@ -26,6 +26,10 @@
 #include "esp_cloud_platform.h"
 #include <freertos/event_groups.h>
 #include "app_auth_user.h"
+#include "app_auth.h"
+#include <alexa.h>
+#include "nvs_flash.h"
+#include <va_nvs_utils.h>
 
 static const char *TAG = "esp_cloud";
 
@@ -45,6 +49,8 @@ extern const int AUTH_DONE_BIT;
 esp_cloud_internal_handle_t *g_cloud_handle;
 extern EventGroupHandle_t cm_event_group;
 extern int32_t user_bind_flag;
+extern const int ALEXA_DONE_BIT;
+extern void alexa_prov_done_cb();
 /* Initialize the Cloud by setting proper fields in the handle and allocating memory */
 esp_err_t esp_cloud_init(esp_cloud_config_t *config, esp_cloud_handle_t *handle)
 {
@@ -388,7 +394,6 @@ static esp_err_t esp_cloud_report_user_bind_info(esp_cloud_internal_handle_t *ha
 
     char publish_payload[300];
     json_str_t jstr;
-    json_str_t jstr_s;
     json_str_start(&jstr, publish_payload, sizeof(publish_payload), NULL, NULL);
     json_start_object(&jstr);
     json_obj_set_string(&jstr, "cmd", "notify");
@@ -405,7 +410,6 @@ static esp_err_t esp_cloud_report_user_bind_info(esp_cloud_internal_handle_t *ha
     snprintf(publish_topic, sizeof(publish_topic), "%s/%s","app", "5ee82dd919b8411db088ed451c5c9e50");
 
     return esp_cloud_platform_publish(handle, publish_topic, publish_payload);
-
 }
 
 esp_err_t esp_cloud_report_device_state(esp_cloud_internal_handle_t *handle)
@@ -425,6 +429,151 @@ void esp_cloud_handle_work_queue(esp_cloud_internal_handle_t *handle)
         ret = xQueueReceive(handle->work_queue, &work_queue_entry, 0);
     }
 }
+
+esp_err_t esp_cloud_report_alexa_sign_in_status(esp_cloud_internal_handle_t *handle,int code, char *additional_info)
+{
+    if (!handle) {
+        return ESP_FAIL;
+    }
+
+    char publish_payload[200];
+    json_str_t jstr;
+    json_str_start(&jstr, publish_payload, sizeof(publish_payload), NULL, NULL);
+    json_start_object(&jstr);
+    json_obj_set_string(&jstr, "cmd","alexa_res");
+    json_obj_set_string(&jstr, "source","device");
+    json_push_object(&jstr,"data");
+    json_obj_set_string(&jstr, "device_id", handle->device_id);
+    json_obj_set_int(&jstr, "code",code);
+    json_obj_set_string(&jstr, "msg",additional_info);
+    json_pop_object(&jstr);
+    json_end_object(&jstr);
+    json_str_end(&jstr);
+
+    char publish_topic[100];
+    snprintf(publish_topic, sizeof(publish_topic),"app/%s",handle->device_id);
+    esp_err_t err = esp_cloud_platform_publish(handle, publish_topic, publish_payload);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "esp_cloud_platform_publish_data returned error %d",err);
+        return ESP_FAIL;
+    }
+    return ESP_OK;
+}
+
+static void alexa_sign_in_handler(const char *topic, void *payload, size_t payload_len, void *priv_data)
+{
+  
+    jparse_ctx_t jctx;
+    auth_delegate_config_t cfg = {0};
+    esp_cloud_internal_handle_t *handle = (esp_cloud_internal_handle_t *)priv_data;
+
+    int ret = json_parse_start(&jctx, (char *)payload, (int) payload_len);
+    if (ret != 0) {
+        esp_cloud_report_alexa_sign_in_status(handle, 1, "Aborted. JSON Payload error");
+        return;
+    }
+
+    json_obj_get_object(&jctx,"data");
+
+    // //acquire redirect_uri-------------------------------------------------------------
+    int len = 0;
+    ret = json_obj_get_strlen(&jctx, "redirect_uri", &len);
+    if (ret != ESP_OK) {
+        esp_cloud_report_alexa_sign_in_status(handle, 2, "Aborted. redirect_uri not found in JSON");
+        return;
+    }
+    len++;
+    cfg.u.comp_app.redirect_uri = esp_cloud_mem_calloc(1, len);
+    if (!cfg.u.comp_app.redirect_uri) {
+        esp_cloud_report_alexa_sign_in_status(handle, 3, "Aborted. redirect_uri memory allocation failed");
+    }
+    json_obj_get_string(&jctx, "redirect_uri",cfg.u.comp_app.redirect_uri, len);
+    ESP_LOGI(TAG, "redirect_uri: %s", cfg.u.comp_app.redirect_uri);
+
+    //acquire auth_code-------------------------------------------------------------
+    len = 0;
+    ret = json_obj_get_strlen(&jctx, "auth_code", &len);
+    if (ret != ESP_OK) {
+        esp_cloud_report_alexa_sign_in_status(handle, 4, "auth_code not found in JSON");
+        return;
+    }
+    len++;
+    cfg.u.comp_app.auth_code = esp_cloud_mem_calloc(1, len);
+    if (!cfg.u.comp_app.auth_code) {
+        esp_cloud_report_alexa_sign_in_status(handle, 5, "auth_code memory allocation failed");
+        return;
+    }
+    json_obj_get_string(&jctx, "auth_code", cfg.u.comp_app.auth_code, len);
+    ESP_LOGI(TAG, "auth_code: %s", cfg.u.comp_app.auth_code);
+
+    //acquire client_id-------------------------------------------------------------
+    len = 0;
+    ret = json_obj_get_strlen(&jctx, "client_id", &len);
+    if (ret != ESP_OK) {
+        esp_cloud_report_alexa_sign_in_status(handle, 6, "client_id not found in JSON");
+        return;
+    }
+    len++; 
+    cfg.u.comp_app.client_id = esp_cloud_mem_calloc(1, len);
+    if (!cfg.u.comp_app.client_id) {
+        esp_cloud_report_alexa_sign_in_status(handle, 7, "client_id memory allocation failed");
+        return;
+    }
+    json_obj_get_string(&jctx, "client_id", cfg.u.comp_app.client_id, len);
+    ESP_LOGI(TAG, "client_id: %s", cfg.u.comp_app.client_id);
+
+    json_obj_leave_object(&jctx);
+    json_parse_end(&jctx);
+
+    cfg.type = auth_type_comp_app;
+    cfg.u.comp_app.code_verifier = "abcd1234";
+    alexa_auth_delegate_signin(&cfg);    
+    alexa_prov_done_cb();
+
+    // if (cfg.u.comp_app.redirect_uri) {
+    //     free(cfg.u.comp_app.redirect_uri);
+    //     cfg.u.comp_app.redirect_uri = NULL;
+    // }
+
+    // if (cfg.u.comp_app.auth_code) {
+    //     free(cfg.u.comp_app.auth_code);
+    //     cfg.u.comp_app.auth_code = NULL;
+    // }
+
+    // if (cfg.u.comp_app.client_id) {
+    //     free(cfg.u.comp_app.client_id);
+    //     cfg.u.comp_app.client_id = NULL;
+    // }
+
+    // if (refresh_token) {
+    //     free(refresh_token);
+    //     refresh_token = NULL;
+    // }
+ 
+    return;
+}
+
+static esp_err_t esp_cloud_alexa_sign_in_topic(esp_cloud_handle_t handle, void *priv_data)
+{
+    char subscribe_topic[100];
+    esp_cloud_internal_handle_t *int_handle = (esp_cloud_internal_handle_t *)handle;
+
+    snprintf(subscribe_topic, sizeof(subscribe_topic),"app/%s",int_handle->device_id);
+
+    ESP_LOGI(TAG, "Subscribing to: %s", subscribe_topic);
+    /* First unsubscribing, in case there is a stale subscription */
+    esp_cloud_platform_unsubscribe(int_handle, subscribe_topic);
+    esp_err_t err = esp_cloud_platform_subscribe(int_handle, subscribe_topic, alexa_sign_in_handler, priv_data);
+    if(err != ESP_OK) {
+        ESP_LOGE(TAG, "OTA URL Subscription Error %d", err);
+        return ESP_FAIL;
+    }
+    return err;
+}
+
+
+extern void aws_iot_done_cb();
+extern const int AWS_IOT_DONE_BIT;
 static void esp_cloud_task(void *param)
 {
     if (!param) {
@@ -434,7 +583,9 @@ static void esp_cloud_task(void *param)
 
     if(handle->enable_time_sync) {
         esp_cloud_time_sync(); /* TODO: Error handling */
+       
     }
+
     esp_err_t err = esp_cloud_platform_connect(handle);
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "esp_cloud_platform_connect() returned %d. Aborting", err);
@@ -444,10 +595,14 @@ static void esp_cloud_task(void *param)
     esp_cloud_platform_register_dynamic_params(handle); /* TODO: Error handling */
     esp_cloud_report_device_info(handle);
     esp_cloud_report_device_state(handle);
+    esp_cloud_alexa_sign_in_topic(handle,handle);
 
     if(user_bind_flag == NOTICE_BINDED){
         esp_cloud_report_user_bind_info(handle,_status_code);
     }
+    // aws_iot_done_cb();
+    esp_cloud_time_sync_uninit();
+    xEventGroupSetBits(cm_event_group, AWS_IOT_DONE_BIT);
     
     while (!handle->cloud_stop) {
         esp_cloud_handle_work_queue(handle);

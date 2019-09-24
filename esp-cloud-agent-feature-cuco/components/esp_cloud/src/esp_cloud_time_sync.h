@@ -15,3 +15,4 @@
 #include <esp_err.h>
 void esp_cloud_time_sync_init(void);
 esp_err_t esp_cloud_time_sync();
+void esp_cloud_time_sync_uninit(void);

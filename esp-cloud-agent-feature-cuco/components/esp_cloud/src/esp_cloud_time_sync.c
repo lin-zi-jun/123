@@ -31,6 +31,11 @@ void esp_cloud_time_sync_init(void)
     sntp_init();
 }
 
+void esp_cloud_time_sync_uninit(void)
+{
+    sntp_stop();
+}
+
 esp_err_t esp_cloud_time_sync()
 {
     int retry_count = TIME_RETRY_COUNT;

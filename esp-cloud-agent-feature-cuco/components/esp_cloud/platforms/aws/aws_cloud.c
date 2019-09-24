@@ -182,6 +182,7 @@ static void aws_get_new_param_val(esp_cloud_param_val_t *param_val, const jsonSt
 
 static void aws_common_delta_callback(const char* pJsonValueBuffer, uint32_t valueLength, jsonStruct_t *pContext)
 {
+    printf("okokook\r\n");
     if(pContext == NULL) {
         return;
     }
@@ -362,7 +363,7 @@ esp_err_t esp_cloud_platform_connect(esp_cloud_internal_handle_t *handle)
     scp.pMqttClientId = handle->device_id;
     scp.mqttClientIdLen = (uint16_t) strlen(handle->device_id);
 
-    ESP_LOGI(TAG, "Connecting to AWS...");
+    ESP_LOGI(TAG, "Connecting to AWS.....");
     int reconnect_attempts = handle->reconnect_attempts ? handle->reconnect_attempts : 1;
     do {
         rc = aws_iot_shadow_connect(&platform_data->mqttClient, &scp);
