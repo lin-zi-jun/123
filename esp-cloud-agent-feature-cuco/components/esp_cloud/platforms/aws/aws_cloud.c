@@ -177,6 +177,7 @@ static void aws_get_new_param_val(esp_cloud_param_val_t *param_val, const jsonSt
             break;
         default:
             ESP_LOGE(TAG, "aws_get_new_param_val got invalid value type");
+        break;
     }
 }
 
@@ -506,8 +507,10 @@ void get_new_value(esp_cloud_param_val_t *param_val, jsonStruct_t *dynamic_param
     switch(param_val->type) {
         case CLOUD_PARAM_TYPE_BOOLEAN:
             * (bool *)dynamic_params->pData = param_val->val.b;
+        break;
         default:
             ESP_LOGE(TAG, "aws_get_new_param_val got invalid value type");
+        break;
     }
 }
 esp_err_t esp_cloud_platform_wait(esp_cloud_internal_handle_t *handle)
