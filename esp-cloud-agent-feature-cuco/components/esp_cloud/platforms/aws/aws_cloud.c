@@ -183,7 +183,7 @@ static void aws_get_new_param_val(esp_cloud_param_val_t *param_val, const jsonSt
 
 static void aws_common_delta_callback(const char* pJsonValueBuffer, uint32_t valueLength, jsonStruct_t *pContext)
 {
-    printf("okokook\r\n");
+    printf("aws_common_delta_callback------>\r\n");
     if(pContext == NULL) {
         return;
     }
