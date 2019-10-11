@@ -18,7 +18,7 @@ static const char *TAG = "cloud_time_sync";
 
 #define REF_TIME    1546300800 /* 01-Jan-2019 00:00:00 */
 #define SNTP_SERVER_NAME     "pool.ntp.org"
-#define TIME_RETRY_COUNT    10
+#define TIME_RETRY_COUNT    20
 
 void esp_cloud_time_sync_init(void)
 {
@@ -27,7 +27,10 @@ void esp_cloud_time_sync_init(void)
     }
     ESP_LOGI(TAG, "Initializing SNTP");
     sntp_setoperatingmode(SNTP_OPMODE_POLL);
-    sntp_setservername(0, SNTP_SERVER_NAME);
+    sntp_setservername(0, "0.asia.pool.ntp.org");
+    sntp_setservername(1, "0.cn.pool.ntp.org");
+    sntp_setservername(2, "0.us.pool.ntp.org");
+    sntp_setservername(3,  "pool.ntp.org");
     sntp_init();
 }
 

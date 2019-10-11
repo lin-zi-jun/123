@@ -637,11 +637,6 @@ static void esp_cloud_task(void *param)
     }
     esp_cloud_internal_handle_t *handle = (esp_cloud_internal_handle_t *) param;
 
-    if(handle->enable_time_sync) {
-        esp_cloud_time_sync(); /* TODO: Error handling */
-       
-    }
-
     esp_err_t err = esp_cloud_platform_connect(handle);
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "esp_cloud_platform_connect() returned %d. Aborting", err);
@@ -657,7 +652,6 @@ static void esp_cloud_task(void *param)
         esp_cloud_report_user_bind_info(handle,bind_status_code);
     }
     // aws_iot_done_cb();
-    esp_cloud_time_sync_uninit();
     xEventGroupSetBits(cm_event_group, AWS_IOT_DONE_BIT);
     printf("------------------------------------------esp cloud init ok-----------------------------------------------\r\n");
     while (!handle->cloud_stop) {
@@ -674,7 +668,6 @@ static void esp_cloud_task(void *param)
             Wait_for_alexa_in = 0;
             esp_cloud_report_alexa_sign_out_status(handle,200,"unbind succeed");
         }
-
     }
     esp_cloud_platform_disconnect(handle);
     handle->cloud_stop = false;
@@ -706,6 +699,8 @@ esp_err_t esp_cloud_start(esp_cloud_handle_t handle)
     esp_cloud_internal_handle_t *int_handle = (esp_cloud_internal_handle_t *)handle;
     if (int_handle->enable_time_sync) {
         esp_cloud_time_sync_init();
+        esp_cloud_time_sync(); 
+        esp_cloud_time_sync_uninit();
     }
 
     ESP_LOGI(TAG, "Starting Cloud Agent");
@@ -716,7 +711,7 @@ esp_err_t esp_cloud_start(esp_cloud_handle_t handle)
     }
 
     // StackType_t *esp_cloud_task_stack = (StackType_t *)va_mem_alloc(ESP_CLOUD_TASK_STACK, VA_MEM_EXTERNAL);
-    // StaticTask_t esp_cloud_task_buf;
+    // static StaticTask_t esp_cloud_task_buf;
     // TaskHandle_t esp_cloud_task_handle = xTaskCreateStatic(esp_cloud_task, "esp_cloud_task", ESP_CLOUD_TASK_STACK,
     //                                         int_handle, 5, esp_cloud_task_stack, &esp_cloud_task_buf);
     // if(esp_cloud_task_stack==NULL){
