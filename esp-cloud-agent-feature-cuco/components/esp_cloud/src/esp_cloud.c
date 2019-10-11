@@ -47,9 +47,8 @@ static const char *TAG = "esp_cloud";
 #define ESP_CLOUD_TASK_STACK  6 * 1024
 
 extern int bind_status_code;    /*!< status code (integer) */
-extern const int AUTH_DONE_BIT;
 esp_cloud_internal_handle_t *g_cloud_handle;
-extern EventGroupHandle_t cm_event_group;
+extern void app_aws_done_cb();
 uint8_t Wait_for_alexa_in = 0;
 uint8_t Wait_for_alexa_out = 0;
 // extern const int ALEXA_DONE_BIT;
@@ -651,8 +650,8 @@ static void esp_cloud_task(void *param)
     if(user_bind_flag == NOTICE_BINDED){
         esp_cloud_report_user_bind_info(handle,bind_status_code);
     }
-    // aws_iot_done_cb();
-    xEventGroupSetBits(cm_event_group, AWS_IOT_DONE_BIT);
+    app_aws_done_cb();
+    // xEventGroupSetBits(cm_event_group, AWS_IOT_DONE_BIT);
     printf("------------------------------------------esp cloud init ok-----------------------------------------------\r\n");
     while (!handle->cloud_stop) {
         esp_cloud_handle_work_queue(handle);
