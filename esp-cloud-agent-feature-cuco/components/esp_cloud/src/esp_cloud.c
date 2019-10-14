@@ -507,7 +507,7 @@ esp_err_t esp_cloud_report_alexa_sign_out_status(esp_cloud_internal_handle_t *ha
 
 static void alexa_sign_in_handler(const char *topic, void *payload, size_t payload_len, void *priv_data)
 {
-    int len = 0;
+    int len = 0,cmp = 255;
     jparse_ctx_t jctx;
     auth_delegate_config_t cfg = {0};
     esp_cloud_internal_handle_t *handle = (esp_cloud_internal_handle_t *)priv_data;
@@ -519,83 +519,110 @@ static void alexa_sign_in_handler(const char *topic, void *payload, size_t paylo
 
     printf("have alexa information------------------------------------------------------------------\r\n");
 
-    ret = json_obj_get_strlen(&jctx, "cmd", &len);
+    ret = json_obj_get_strlen(&jctx, "devcice_id", &len);
     if (ret != ESP_OK) {
-        printf("no find cmd--------------\r\n");
         return;
-    }else{
-        len++;
-        char * p_cmd = esp_cloud_mem_calloc(1, len);
-        json_obj_get_string(&jctx, "cmd",p_cmd, len);
-
-        if(!strcmp(p_cmd,"alexa_unbind_req")){
-            Wait_for_alexa_out = 1;
-            alexa_auth_delegate_signout();
-            printf("alexa_auth_delegate_signout\r\n");
-            return;
-        }else if(!strcmp(p_cmd,"alexa_req")){
-
-            printf("recive alexa_bind_req\r\n");
-            if(Wait_for_alexa_in == 0){
-                printf("Wait_for_alexa_in\r\n");
-                ret = json_obj_get_object(&jctx,"data");
-                if (ret != 0) {
-                    return;
-                }
-
-                // //acquire redirect_uri-------------------------------------------------------------
-                
-                ret = json_obj_get_strlen(&jctx, "redirect_uri", &len);
-                if (ret != ESP_OK) {
-                    return;
-                }
-                len++;
-                cfg.u.comp_app.redirect_uri = esp_cloud_mem_calloc(1, len);
-                if (!cfg.u.comp_app.redirect_uri) {
-                }
-                json_obj_get_string(&jctx, "redirect_uri",cfg.u.comp_app.redirect_uri, len);
-                ESP_LOGI(TAG, "redirect_uri: %s", cfg.u.comp_app.redirect_uri);
-
-                //acquire auth_code-------------------------------------------------------------
-                len = 0;
-                ret = json_obj_get_strlen(&jctx, "auth_code", &len);
-                if (ret != ESP_OK) {
-                    return;
-                }
-                len++;
-                cfg.u.comp_app.auth_code = esp_cloud_mem_calloc(1, len);
-                if (!cfg.u.comp_app.auth_code) {
-                    return;
-                }
-                json_obj_get_string(&jctx, "auth_code", cfg.u.comp_app.auth_code, len);
-                ESP_LOGI(TAG, "auth_code: %s", cfg.u.comp_app.auth_code);
-
-                //acquire client_id-------------------------------------------------------------
-                len = 0;
-                ret = json_obj_get_strlen(&jctx, "client_id", &len);
-                if (ret != ESP_OK) {
-                    return;
-                }
-                len++; 
-                cfg.u.comp_app.client_id = esp_cloud_mem_calloc(1, len);
-                if (!cfg.u.comp_app.client_id) {
-                    return;
-                }
-                json_obj_get_string(&jctx, "client_id", cfg.u.comp_app.client_id, len);
-                ESP_LOGI(TAG, "client_id: %s", cfg.u.comp_app.client_id);
-
-                json_obj_leave_object(&jctx);
-                json_parse_end(&jctx);
-
-                cfg.type = auth_type_comp_app;
-                cfg.u.comp_app.code_verifier = "abcd1234";
-                alexa_auth_delegate_signin(&cfg);  
-            }  
-        }else{
-            printf("nothing-------------\r\n");
-        }
     }
-    // alexa_prov_done_cb();
+    len++;
+    cfg.u.comp_app.devcice_id = esp_cloud_mem_calloc(1, len);
+    if (!cfg.u.comp_app.devcice_id) {
+        return;
+    }
+    json_obj_get_string(&jctx, "devcice_id",cfg.u.comp_app.devcice_id, len);
+    ESP_LOGI(TAG, "devcice_id: %s", cfg.u.comp_app.devcice_id);
+
+    char * p_device_id = esp_cloud_storage_get("device_id");
+    if (p_device_id) {
+        cmp = strcmp(cfg.u.comp_app.devcice_id,p_device_id);
+        free(cfg.u.comp_app.devcice_id);
+        free(p_device_id);
+    }else{
+        ESP_LOGE(TAG, "p_device_id: fail");
+        return;
+    }
+
+    if(!cmp){
+        ret = json_obj_get_strlen(&jctx, "cmd", &len);
+        if (ret != ESP_OK) {
+            printf("no find cmd--------------\r\n");
+            return;
+        }else{
+
+            len++;
+            char * p_cmd = esp_cloud_mem_calloc(1, len);
+            json_obj_get_string(&jctx, "cmd",p_cmd, len);
+            if(!strcmp(p_cmd,"alexa_unbind_req")){
+                Wait_for_alexa_out = 1;
+                alexa_auth_delegate_signout();
+                printf("alexa_auth_delegate_signout\r\n");
+                return;
+            }else if(!strcmp(p_cmd,"alexa_req")){
+
+                printf("recive alexa_bind_req\r\n");
+                if(Wait_for_alexa_in == 0){
+                    printf("Wait_for_alexa_in\r\n");
+                    ret = json_obj_get_object(&jctx,"data");
+                    if (ret != 0) {
+                        return;
+                    }
+
+                    // //acquire redirect_uri-------------------------------------------------------------
+                    
+                    ret = json_obj_get_strlen(&jctx, "redirect_uri", &len);
+                    if (ret != ESP_OK) {
+                        return;
+                    }
+                    len++;
+                    cfg.u.comp_app.redirect_uri = esp_cloud_mem_calloc(1, len);
+                    if (!cfg.u.comp_app.redirect_uri) {
+                        return;
+                    }
+                    json_obj_get_string(&jctx, "redirect_uri",cfg.u.comp_app.redirect_uri, len);
+                    ESP_LOGI(TAG, "redirect_uri: %s", cfg.u.comp_app.redirect_uri);
+
+                    //acquire auth_code-------------------------------------------------------------
+                    len = 0;
+                    ret = json_obj_get_strlen(&jctx, "auth_code", &len);
+                    if (ret != ESP_OK) {
+                        return;
+                    }
+                    len++;
+                    cfg.u.comp_app.auth_code = esp_cloud_mem_calloc(1, len);
+                    if (!cfg.u.comp_app.auth_code) {
+                        return;
+                    }
+                    json_obj_get_string(&jctx, "auth_code", cfg.u.comp_app.auth_code, len);
+                    ESP_LOGI(TAG, "auth_code: %s", cfg.u.comp_app.auth_code);
+
+                    //acquire client_id-------------------------------------------------------------
+                    len = 0;
+                    ret = json_obj_get_strlen(&jctx, "client_id", &len);
+                    if (ret != ESP_OK) {
+                        return;
+                    }
+                    len++; 
+                    cfg.u.comp_app.client_id = esp_cloud_mem_calloc(1, len);
+                    if (!cfg.u.comp_app.client_id) {
+                        return;
+                    }
+                    json_obj_get_string(&jctx, "client_id", cfg.u.comp_app.client_id, len);
+                    ESP_LOGI(TAG, "client_id: %s", cfg.u.comp_app.client_id);
+
+                    json_obj_leave_object(&jctx);
+                    json_parse_end(&jctx);
+
+                    cfg.type = auth_type_comp_app;
+                    cfg.u.comp_app.code_verifier = "abcd1234";
+                    alexa_auth_delegate_signin(&cfg);  
+                }  
+            }else{
+                printf("nothing-------------\r\n");
+            }
+        }
+    }else{
+         printf("no strcmp--------------\r\n");
+    }
+
  
     return;
 }
@@ -628,6 +655,7 @@ static esp_err_t esp_cloud_alexa_sign_in_topic(esp_cloud_handle_t handle, void *
 
 extern void aws_iot_done_cb();
 extern const int AWS_IOT_DONE_BIT;
+extern void test_alexa_mem(void);
 static void esp_cloud_task(void *param)
 {
     printf("------------------------------------------esp cloud start-----------------------------------------------\r\n");
@@ -660,6 +688,7 @@ static void esp_cloud_task(void *param)
         if(Wait_for_alexa_in == 1){
             esp_cloud_report_alexa_sign_in_status(handle,200,"bind succeed");
             Wait_for_alexa_in = 2;
+            // test_alexa_mem();
         }
 
         if(Wait_for_alexa_out == 1){
