@@ -512,32 +512,42 @@ static void alexa_sign_in_handler(const char *topic, void *payload, size_t paylo
     auth_delegate_config_t cfg = {0};
     esp_cloud_internal_handle_t *handle = (esp_cloud_internal_handle_t *)priv_data;
 
+    printf("have alexa information------------------------------------------------------------------\r\n");
+    printf("%.*s\r\n",payload_len,(char *)payload);
     int ret = json_parse_start(&jctx, (char *)payload, (int) payload_len);
     if (ret != 0) {
         return;
     }
 
-    printf("have alexa information------------------------------------------------------------------\r\n");
+    ret = json_obj_get_object(&jctx,"data");
+    if (ret != 0) {
+        return;
+    }
 
     ret = json_obj_get_strlen(&jctx, "devcice_id", &len);
     if (ret != ESP_OK) {
         return;
     }
     len++;
-    cfg.u.comp_app.devcice_id = esp_cloud_mem_calloc(1, len);
-    if (!cfg.u.comp_app.devcice_id) {
+    char *buf_id = esp_cloud_mem_calloc(1, len);
+    if (!buf_id) {
         return;
     }
-    json_obj_get_string(&jctx, "devcice_id",cfg.u.comp_app.devcice_id, len);
-    ESP_LOGI(TAG, "devcice_id: %s", cfg.u.comp_app.devcice_id);
+    json_obj_get_string(&jctx, "devcice_id",buf_id, len);
+    ESP_LOGI(TAG, "devcice_id: %s", buf_id);
 
     char * p_device_id = esp_cloud_storage_get("device_id");
     if (p_device_id) {
-        cmp = strcmp(cfg.u.comp_app.devcice_id,p_device_id);
-        free(cfg.u.comp_app.devcice_id);
+        cmp = strcmp(buf_id,p_device_id);
+        free(buf_id);
         free(p_device_id);
     }else{
         ESP_LOGE(TAG, "p_device_id: fail");
+        return;
+    }
+
+    ret = json_obj_leave_object(&jctx);
+     if (ret != 0) {
         return;
     }
 
