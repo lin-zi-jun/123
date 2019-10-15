@@ -637,6 +637,17 @@ static void alexa_sign_in_handler(const char *topic, void *payload, size_t paylo
     return;
 }
 
+
+void test_alexa_sign_in(void){
+    auth_delegate_config_t cfg = {0};
+    cfg.type = auth_type_comp_app;
+    cfg.u.comp_app.redirect_uri = "amzn://com.espressif.intprovbleavs";
+    cfg.u.comp_app.client_id = "amzn1.application-oa2-client.d97d5def2fbe4eaaba21b1994ada8781";
+    cfg.u.comp_app.auth_code = "ANSiameIZkqpRXTtdnvY";
+    cfg.u.comp_app.code_verifier = "abcd1234";
+    alexa_auth_delegate_signin(&cfg);
+}
+
 static esp_err_t esp_cloud_alexa_sign_in_topic(esp_cloud_handle_t handle, void *priv_data)
 {
     // char subscribe_topic[100];
