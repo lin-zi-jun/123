@@ -505,6 +505,8 @@ esp_err_t esp_cloud_report_alexa_sign_out_status(esp_cloud_internal_handle_t *ha
     return ESP_OK;
 }
 
+ extern uint32_t app_to_current_val;
+ extern int app_set_volume;
 static void alexa_sign_in_handler(const char *topic, void *payload, size_t payload_len, void *priv_data)
 {
     int len = 0,cmp = 255;
@@ -625,7 +627,40 @@ static void alexa_sign_in_handler(const char *topic, void *payload, size_t paylo
                     cfg.u.comp_app.code_verifier = "abcd1234";
                     alexa_auth_delegate_signin(&cfg);  
                 }  
-            }else{
+            }else if(!strcmp(p_cmd,"alexa_mute_req")){
+                    printf("recive alexa_mute_req\r\n");
+                    ret = json_obj_get_object(&jctx,"data");
+                    if (ret != 0) {
+                        return;
+                    }
+                    bool val;
+                    json_obj_get_bool(&jctx, "mute",&val);
+                    ESP_LOGI(TAG, "val: %d",val);   
+                    app_to_current_val = 1230;
+            }else if(!strcmp(p_cmd,"alexa_talk_req")){
+                    printf("recive alexa_talk_req\r\n");
+              
+                    ret = json_obj_get_object(&jctx,"data");
+                    if (ret != 0) {
+                        return;
+                    }
+                    app_to_current_val = 600;
+            }else if(!strcmp(p_cmd,"alexa_volume_req")){
+                    printf("recive alexa_volume_req\r\n");
+              
+                    ret = json_obj_get_object(&jctx,"data");
+                    if (ret != 0) {
+                        return;
+                    }
+                    int volume=100;
+                    json_obj_get_int(&jctx, "volume",&volume);
+                    app_set_volume = volume;
+                    ESP_LOGI(TAG, "volume: %d", app_set_volume);
+                    json_obj_leave_object(&jctx);
+                    json_parse_end(&jctx);
+                    app_to_current_val = 2480;
+            }
+            else{
                 printf("nothing-------------\r\n");
             }
         }
@@ -700,7 +735,6 @@ static void esp_cloud_task(void *param)
         esp_cloud_report_user_bind_info(handle,bind_status_code);
     }
     app_aws_done_cb();
-    // xEventGroupSetBits(cm_event_group, AWS_IOT_DONE_BIT);
     printf("------------------------------------------esp cloud init ok-----------------------------------------------\r\n");
     while (!handle->cloud_stop) {
         esp_cloud_handle_work_queue(handle);
@@ -709,7 +743,6 @@ static void esp_cloud_task(void *param)
         if(Wait_for_alexa_in == 1){
             esp_cloud_report_alexa_sign_in_status(handle,200,"bind succeed");
             Wait_for_alexa_in = 2;
-            // test_alexa_mem();
         }
 
         if(Wait_for_alexa_out == 1){
@@ -758,19 +791,6 @@ esp_err_t esp_cloud_start(esp_cloud_handle_t handle)
         ESP_LOGE(TAG, "Couldn't create cloud task");
         return ESP_FAIL;
     }
-
-    // StackType_t *esp_cloud_task_stack = (StackType_t *)va_mem_alloc(ESP_CLOUD_TASK_STACK, VA_MEM_EXTERNAL);
-    // static StaticTask_t esp_cloud_task_buf;
-    // TaskHandle_t esp_cloud_task_handle = xTaskCreateStatic(esp_cloud_task, "esp_cloud_task", ESP_CLOUD_TASK_STACK,
-    //                                         int_handle, 5, esp_cloud_task_stack, &esp_cloud_task_buf);
-    // if(esp_cloud_task_stack==NULL){
-    //     printf("esp_cloud_task_stack fali\r\n");
-    // }
-
-    // if (esp_cloud_task_handle == NULL) {
-    //     ESP_LOGE(TAG, "Could not create va esp_cloud task");
-    //     return ESP_FAIL;
-    // }
 
     return ESP_OK;
 }
