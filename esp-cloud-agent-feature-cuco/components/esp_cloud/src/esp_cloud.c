@@ -637,6 +637,8 @@ static void alexa_sign_in_handler(const char *topic, void *payload, size_t paylo
                     json_obj_get_bool(&jctx, "mute",&val);
                     ESP_LOGI(TAG, "val: %d",val);   
                     app_to_current_val = 1230;
+                    json_obj_leave_object(&jctx);
+                    json_parse_end(&jctx);
             }else if(!strcmp(p_cmd,"alexa_talk_req")){
                     printf("recive alexa_talk_req\r\n");
               
@@ -645,6 +647,8 @@ static void alexa_sign_in_handler(const char *topic, void *payload, size_t paylo
                         return;
                     }
                     app_to_current_val = 600;
+                    json_obj_leave_object(&jctx);
+                    json_parse_end(&jctx);
             }else if(!strcmp(p_cmd,"alexa_volume_req")){
                     printf("recive alexa_volume_req\r\n");
               
@@ -659,6 +663,16 @@ static void alexa_sign_in_handler(const char *topic, void *payload, size_t paylo
                     json_obj_leave_object(&jctx);
                     json_parse_end(&jctx);
                     app_to_current_val = 2480;
+            }else if(!strcmp(p_cmd,"alexa_wifi_reset_req")){
+                    printf("recive alexa_wifi_reset_req\r\n");
+              
+                    ret = json_obj_get_object(&jctx,"data");
+                    if (ret != 0) {
+                        return;
+                    }
+                     json_obj_leave_object(&jctx);
+                     json_parse_end(&jctx);
+                    app_to_current_val = 2000;
             }
             else{
                 printf("nothing-------------\r\n");
