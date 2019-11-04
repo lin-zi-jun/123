@@ -32,7 +32,8 @@
 
 #include "esp_cloud_platform.h"
 #include "aws_custom_utils.h"
-
+#include "app_auth_user.h"
+#include "production_test.h"
 #define MAX_LENGTH_OF_UPDATE_JSON_BUFFER 200
 #define AWS_TASK_STACK  12 * 1024
 static const char *TAG = "aws_cloud";
@@ -317,7 +318,7 @@ void disconnectCallbackHandler(AWS_IoT_Client *pClient, void *data)
 {
     ESP_LOGW(TAG, "MQTT Disconnect");
     IoT_Error_t rc = FAILURE;
-
+    aws_iot_connect = false;
     if(NULL == pClient) {
         return;
     }
@@ -329,6 +330,8 @@ void disconnectCallbackHandler(AWS_IoT_Client *pClient, void *data)
         rc = aws_iot_mqtt_attempt_reconnect(pClient);
         if(NETWORK_RECONNECTED == rc) {
             ESP_LOGW(TAG, "Manual Reconnect Successful");
+            aws_iot_connect = true;
+            pro_test_item = 3;
         } else {
             ESP_LOGW(TAG, "Manual Reconnect Failed - %d", rc);
         }
@@ -371,11 +374,14 @@ esp_err_t esp_cloud_platform_connect(esp_cloud_internal_handle_t *handle)
         if(SUCCESS != rc) {
             ESP_LOGE(TAG, "Error(%d) connecting to %s:%d", rc, sp.pHost, sp.port);
             vTaskDelay(1000 / portTICK_RATE_MS);
+        }else{
+            aws_iot_connect = true;
         }
         if (handle->reconnect_attempts) {
             reconnect_attempts--;
         }
-    } while(SUCCESS != rc && reconnect_attempts);
+    // } while(SUCCESS != rc && reconnect_attempts);
+    } while(SUCCESS != rc);
     if (reconnect_attempts == 0) {
         ESP_LOGE(TAG, "Could not connect to cloud even after %d attempts", handle->reconnect_attempts);
         return ESP_FAIL;

@@ -32,7 +32,7 @@
 #include <va_nvs_utils.h>
 #include "app_prov_handlers.h"
 #include <va_mem_utils.h>
-
+#include "production_test.h"
 static const char *TAG = "esp_cloud";
 
 #define INFO_TOPIC_SUFFIX       "device/info"
@@ -46,13 +46,11 @@ static const char *TAG = "esp_cloud";
 
 #define ESP_CLOUD_TASK_STACK  6 * 1024
 
-extern int bind_status_code;    /*!< status code (integer) */
+
+
+extern int bind_status_code;    
 esp_cloud_internal_handle_t *g_cloud_handle;
 extern void app_aws_done_cb();
-uint8_t Wait_for_alexa_in = 0;
-uint8_t Wait_for_alexa_out = 0;
-// extern const int ALEXA_DONE_BIT;
-// extern void alexa_prov_done_cb();
 /* Initialize the Cloud by setting proper fields in the handle and allocating memory */
 esp_err_t esp_cloud_init(esp_cloud_config_t *config, esp_cloud_handle_t *handle)
 {
@@ -564,14 +562,14 @@ static void alexa_sign_in_handler(const char *topic, void *payload, size_t paylo
             char * p_cmd = esp_cloud_mem_calloc(1, len);
             json_obj_get_string(&jctx, "cmd",p_cmd, len);
             if(!strcmp(p_cmd,"alexa_unbind_req")){
-                Wait_for_alexa_out = 1;
+                Wait_for_alexa_out = NOT_LOG_OUT;
                 alexa_auth_delegate_signout();
                 printf("alexa_auth_delegate_signout\r\n");
                 return;
             }else if(!strcmp(p_cmd,"alexa_req")){
 
                 printf("recive alexa_bind_req\r\n");
-                if(Wait_for_alexa_in == 0){
+                if(Wait_for_alexa_in == NOT_LOG_IN){
                     printf("Wait_for_alexa_in\r\n");
                     ret = json_obj_get_object(&jctx,"data");
                     if (ret != 0) {
@@ -754,16 +752,18 @@ static void esp_cloud_task(void *param)
         esp_cloud_handle_work_queue(handle);
         esp_cloud_platform_wait(handle);
 
-        if(Wait_for_alexa_in == 1){
+        if(Wait_for_alexa_in == LOGED_IN){
             esp_cloud_report_alexa_sign_in_status(handle,200,"bind succeed");
-            Wait_for_alexa_in = 2;
+            Wait_for_alexa_in = LOGED_IN_NOTIVE;
         }
 
-        if(Wait_for_alexa_out == 1){
-            Wait_for_alexa_out = 0;
-            Wait_for_alexa_in = 0;
+        if(Wait_for_alexa_out == NOT_LOG_OUT){
+            Wait_for_alexa_out = LOGED__OUT;
+            Wait_for_alexa_in = NOT_LOG_IN;
             esp_cloud_report_alexa_sign_out_status(handle,200,"unbind succeed");
         }
+
+        production_test(pro_test_item);
     }
     esp_cloud_platform_disconnect(handle);
     handle->cloud_stop = false;
