@@ -763,7 +763,7 @@ static void esp_cloud_task(void *param)
             esp_cloud_report_alexa_sign_out_status(handle,200,"unbind succeed");
         }
 
-        production_test(pro_test_item);
+        // production_test(pro_test_item);
     }
     esp_cloud_platform_disconnect(handle);
     handle->cloud_stop = false;
