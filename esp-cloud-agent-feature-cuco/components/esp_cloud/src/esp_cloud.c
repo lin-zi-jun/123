@@ -38,7 +38,7 @@ static const char *TAG = "esp_cloud";
 #define INFO_TOPIC_SUFFIX       "device/info"
 
 #define DEFAULT_STATIC_PARAMS_COUNT         4
-#define DEFAULT_DYNAMIC_PARAMS_COUNT        1
+#define DEFAULT_DYNAMIC_PARAMS_COUNT        3
 #define ESP_CLOUD_TASK_QUEUE_SIZE           8
 
 #define DEV_FAMILY  "Outlets"
@@ -625,53 +625,57 @@ static void alexa_sign_in_handler(const char *topic, void *payload, size_t paylo
                     cfg.u.comp_app.code_verifier = "abcd1234";
                     alexa_auth_delegate_signin(&cfg);  
                 }  
-            }else if(!strcmp(p_cmd,"alexa_mute_req")){
-                    printf("recive alexa_mute_req\r\n");
-                    ret = json_obj_get_object(&jctx,"data");
-                    if (ret != 0) {
-                        return;
-                    }
-                    bool val;
-                    json_obj_get_bool(&jctx, "mute",&val);
-                    ESP_LOGI(TAG, "val: %d",val);   
-                    app_to_current_val = 1230;
-                    json_obj_leave_object(&jctx);
-                    json_parse_end(&jctx);
-            }else if(!strcmp(p_cmd,"alexa_talk_req")){
-                    printf("recive alexa_talk_req\r\n");
-              
-                    ret = json_obj_get_object(&jctx,"data");
-                    if (ret != 0) {
-                        return;
-                    }
-                    app_to_current_val = 600;
-                    json_obj_leave_object(&jctx);
-                    json_parse_end(&jctx);
-            }else if(!strcmp(p_cmd,"alexa_volume_req")){
-                    printf("recive alexa_volume_req\r\n");
-              
-                    ret = json_obj_get_object(&jctx,"data");
-                    if (ret != 0) {
-                        return;
-                    }
-                    int volume=100;
-                    json_obj_get_int(&jctx, "volume",&volume);
-                    app_set_volume = volume;
-                    ESP_LOGI(TAG, "volume: %d", app_set_volume);
-                    json_obj_leave_object(&jctx);
-                    json_parse_end(&jctx);
-                    app_to_current_val = 2480;
-            }else if(!strcmp(p_cmd,"alexa_wifi_reset_req")){
-                    printf("recive alexa_wifi_reset_req\r\n");
-              
-                    ret = json_obj_get_object(&jctx,"data");
-                    if (ret != 0) {
-                        return;
-                    }
-                     json_obj_leave_object(&jctx);
-                     json_parse_end(&jctx);
-                    app_to_current_val = 2000;
             }
+            // else if(!strcmp(p_cmd,"alexa_mute_req")){
+            //         printf("recive alexa_mute_req\r\n");
+            //         ret = json_obj_get_object(&jctx,"data");
+            //         if (ret != 0) {
+            //             return;
+            //         }
+            //         bool val;
+            //         json_obj_get_bool(&jctx, "mute",&val);
+            //         ESP_LOGI(TAG, "val: %d",val);   
+            //         app_to_current_val = 1230;
+            //         json_obj_leave_object(&jctx);
+            //         json_parse_end(&jctx);
+            // }
+            // else if(!strcmp(p_cmd,"alexa_talk_req")){
+            //         printf("recive alexa_talk_req\r\n");
+              
+            //         ret = json_obj_get_object(&jctx,"data");
+            //         if (ret != 0) {
+            //             return;
+            //         }
+            //         app_to_current_val = 600;
+            //         json_obj_leave_object(&jctx);
+            //         json_parse_end(&jctx);
+            // }
+            // else if(!strcmp(p_cmd,"alexa_volume_req")){
+            //         printf("recive alexa_volume_req\r\n");
+              
+            //         ret = json_obj_get_object(&jctx,"data");
+            //         if (ret != 0) {
+            //             return;
+            //         }
+            //         int volume=100;
+            //         json_obj_get_int(&jctx, "volume",&volume);
+            //         app_set_volume = volume;
+            //         ESP_LOGI(TAG, "volume: %d", app_set_volume);
+            //         json_obj_leave_object(&jctx);
+            //         json_parse_end(&jctx);
+            //         app_to_current_val = 2480;
+            // }
+            // else if(!strcmp(p_cmd,"alexa_wifi_reset_req")){
+            //         printf("recive alexa_wifi_reset_req\r\n");
+              
+            //         ret = json_obj_get_object(&jctx,"data");
+            //         if (ret != 0) {
+            //             return;
+            //         }
+            //          json_obj_leave_object(&jctx);
+            //          json_parse_end(&jctx);
+            //         app_to_current_val = 2000;
+            // }
             else{
                 printf("nothing-------------\r\n");
             }
@@ -697,11 +701,7 @@ void test_alexa_sign_in(void){
 
 static esp_err_t esp_cloud_alexa_sign_in_topic(esp_cloud_handle_t handle, void *priv_data)
 {
-    // char subscribe_topic[100];
     esp_cloud_internal_handle_t *int_handle = (esp_cloud_internal_handle_t *)handle;
-
-    // snprintf(subscribe_topic, sizeof(subscribe_topic),"app/%s",int_handle->device_id);
-
     char *app_topic = custom_config_storage_get("app_topic");
     if (!app_topic) {
         ESP_LOGE(TAG, "app_topic: fail");
@@ -753,17 +753,22 @@ static void esp_cloud_task(void *param)
         esp_cloud_platform_wait(handle);
 
         if(Wait_for_alexa_in == LOGED_IN){
+            if(aws_iot_connect){
+                esp_cloud_update_bool_param(esp_cloud_get_handle(), "alexa", true);
+            }
+            esp_cloud_report_device_state(handle);
             esp_cloud_report_alexa_sign_in_status(handle,200,"bind succeed");
             Wait_for_alexa_in = LOGED_IN_NOTIVE;
         }
 
         if(Wait_for_alexa_out == NOT_LOG_OUT){
+            if(aws_iot_connect){
+                esp_cloud_update_bool_param(esp_cloud_get_handle(), "alexa", false);
+            }
             Wait_for_alexa_out = LOGED__OUT;
             Wait_for_alexa_in = NOT_LOG_IN;
             esp_cloud_report_alexa_sign_out_status(handle,200,"unbind succeed");
         }
-
-        // production_test(pro_test_item);
     }
     esp_cloud_platform_disconnect(handle);
     handle->cloud_stop = false;

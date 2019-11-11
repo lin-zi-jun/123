@@ -454,6 +454,7 @@ esp_err_t esp_cloud_platform_register_dynamic_params(esp_cloud_internal_handle_t
     jsonStruct_t *dynamic_params = esp_cloud_mem_calloc(handle->cur_dynamic_params_count, sizeof(jsonStruct_t));
 
     int i;
+    printf("handle->cur_dynamic_params_count:%d--------------\r\n",handle->cur_dynamic_params_count);
     for (i = 0; i < handle->cur_dynamic_params_count; i++) {
         dynamic_params[i].cb = aws_common_delta_callback;
         esp_err_t err = esp_cloud_param_map_to_aws(&handle->dynamic_cloud_params[i], &dynamic_params[i]);
