@@ -373,9 +373,11 @@ esp_err_t esp_cloud_platform_connect(esp_cloud_internal_handle_t *handle)
         rc = aws_iot_shadow_connect(&platform_data->mqttClient, &scp);
         if(SUCCESS != rc) {
             ESP_LOGE(TAG, "Error(%d) connecting to %s:%d", rc, sp.pHost, sp.port);
+            dev_states = IOT_FAIL;
             vTaskDelay(1000 / portTICK_RATE_MS);
         }else{
             aws_iot_connect = true;
+            dev_states = IOT_OK;
         }
         if (handle->reconnect_attempts) {
             reconnect_attempts--;

@@ -757,7 +757,7 @@ static void esp_cloud_task(void *param)
                 esp_cloud_update_bool_param(esp_cloud_get_handle(), "alexa", true);
             }
             esp_cloud_report_device_state(handle);
-            esp_cloud_report_alexa_sign_in_status(handle,200,"bind succeed");
+            // esp_cloud_report_alexa_sign_in_status(handle,200,"bind succeed");
             Wait_for_alexa_in = LOGED_IN_NOTIVE;
         }
 
@@ -767,7 +767,7 @@ static void esp_cloud_task(void *param)
             }
             Wait_for_alexa_out = LOGED__OUT;
             Wait_for_alexa_in = NOT_LOG_IN;
-            esp_cloud_report_alexa_sign_out_status(handle,200,"unbind succeed");
+            // esp_cloud_report_alexa_sign_out_status(handle,200,"unbind succeed");
         }
     }
     esp_cloud_platform_disconnect(handle);
