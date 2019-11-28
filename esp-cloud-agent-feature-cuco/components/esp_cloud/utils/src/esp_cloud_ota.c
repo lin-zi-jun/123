@@ -86,6 +86,7 @@ esp_err_t esp_cloud_report_ota_status(esp_cloud_ota_handle_t ota_handle, ota_sta
     return ESP_OK;
 }
 
+extern int filesize;
 static void ota_url_handler(const char *topic, void *payload, size_t payload_len, void *priv_data)
 {
     if (!priv_data) {
@@ -98,7 +99,8 @@ static void ota_url_handler(const char *topic, void *payload, size_t payload_len
     }
     ota->ota_in_progress = true;
     /* Starting Firmware Upgrades */
-    ESP_LOGI(TAG, "Upgrade Handler got:%.*s on %s topic\n", (int) payload_len, (char *)payload, topic);
+    // ESP_LOGI(TAG, "Upgrade Handler got:%.*s on %s topic\n", (int) payload_len, (char *)payload, topic);
+    ESP_LOGI(TAG, "Upgrade Handler got:%.*s\n", (int) payload_len, (char *)payload);
     /*
     {
     "url": "<fw_url>",
@@ -144,7 +146,7 @@ static void ota_url_handler(const char *topic, void *payload, size_t payload_len
     json_obj_get_string(&jctx, "url", url, len);
     ESP_LOGI(TAG, "URL: %s", url);
 
-    int filesize = 0;
+    
     json_obj_get_int(&jctx, "file_size", &filesize);
     ESP_LOGI(TAG, "File Size: %d", filesize);
 

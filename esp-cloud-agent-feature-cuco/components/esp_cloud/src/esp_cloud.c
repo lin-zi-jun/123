@@ -417,6 +417,30 @@ static esp_err_t esp_cloud_report_user_bind_info(esp_cloud_internal_handle_t *ha
     return err;
 }
 
+esp_err_t ota_report_progress_val_info(esp_cloud_internal_handle_t *handle,int progress_val)
+{
+    if (!handle) {
+        return ESP_FAIL;
+    }
+
+    char publish_payload[100];
+    json_str_t jstr;
+    json_str_start(&jstr, publish_payload, sizeof(publish_payload), NULL, NULL);
+    json_start_object(&jstr);
+    json_obj_set_int(&jstr, "progress",progress_val);
+    json_end_object(&jstr);
+    json_str_end(&jstr);
+
+    char *app_topic = custom_config_storage_get("app_topic");
+    if (!app_topic) {
+        ESP_LOGE(TAG, "app_topic: fail");
+        return ESP_FAIL;
+    }
+    esp_err_t err = esp_cloud_platform_publish(handle, app_topic,publish_payload);
+    free(app_topic);
+    return err;
+}
+
 esp_err_t esp_cloud_report_device_state(esp_cloud_internal_handle_t *handle)
 {
     return esp_cloud_platform_report_state(handle);
@@ -757,7 +781,6 @@ static void esp_cloud_task(void *param)
                 esp_cloud_update_bool_param(esp_cloud_get_handle(), "alexa", true);
             }
             esp_cloud_report_device_state(handle);
-            // esp_cloud_report_alexa_sign_in_status(handle,200,"bind succeed");
             Wait_for_alexa_in = LOGED_IN_NOTIVE;
         }
 
@@ -767,7 +790,6 @@ static void esp_cloud_task(void *param)
             }
             Wait_for_alexa_out = LOGED__OUT;
             Wait_for_alexa_in = NOT_LOG_IN;
-            // esp_cloud_report_alexa_sign_out_status(handle,200,"unbind succeed");
         }
     }
     esp_cloud_platform_disconnect(handle);
@@ -792,12 +814,14 @@ esp_err_t esp_cloud_queue_work(esp_cloud_handle_t handle, esp_cloud_work_fn_t wo
 }
 
 /* Start the Cloud */
+esp_cloud_internal_handle_t *int_ota_report_handle; 
 esp_err_t esp_cloud_start(esp_cloud_handle_t handle)
 {
     if (!handle) {
         return ESP_FAIL;
     }
     esp_cloud_internal_handle_t *int_handle = (esp_cloud_internal_handle_t *)handle;
+    int_ota_report_handle = (esp_cloud_internal_handle_t *)handle;
     if (int_handle->enable_time_sync) {
         esp_cloud_time_sync_init();
         esp_cloud_time_sync(); 
@@ -836,4 +860,10 @@ char *esp_cloud_get_device_id(esp_cloud_handle_t handle)
     }
     esp_cloud_internal_handle_t *int_handle = (esp_cloud_internal_handle_t *)handle;
     return int_handle->device_id;
+}
+
+
+void ota_report_progress_val_to_app(int progress_val){
+    
+    ota_report_progress_val_info(int_ota_report_handle,progress_val);
 }
