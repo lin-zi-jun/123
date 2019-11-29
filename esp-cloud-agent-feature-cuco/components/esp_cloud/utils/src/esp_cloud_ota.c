@@ -161,6 +161,7 @@ static void ota_url_handler(const char *topic, void *payload, size_t payload_len
         esp_restart();
     }
     ESP_LOGE(TAG, "Firmware Upgrades Failed");
+    esp_restart();
     /* We will come here only in case of error */
     free(url);
     if (ota->last_reported_status != OTA_STATUS_FAILED) {
@@ -187,7 +188,7 @@ end:
 
 static esp_err_t esp_cloud_ota_check(esp_cloud_handle_t handle, void *priv_data)
 {
-    char subscribe_topic[100];
+    char subscribe_topic[100]={0};
     esp_cloud_internal_handle_t *int_handle = (esp_cloud_internal_handle_t *)handle;
 
     snprintf(subscribe_topic, sizeof(subscribe_topic),"%s/%s", int_handle->device_id, OTAURL_TOPIC_SUFFIX);
@@ -208,13 +209,13 @@ static esp_err_t esp_cloud_ota_check(esp_cloud_handle_t handle, void *priv_data)
     json_obj_set_string(&jstr, "fw_version", int_handle->fw_version);
     json_end_object(&jstr);
     json_str_end(&jstr);
-    char publish_topic[100];
+    char publish_topic[100]={0};
     snprintf(publish_topic, sizeof(publish_topic), "%s/%s", int_handle->device_id, OTAFETCH_TOPIC_SUFFIX);
     err = esp_cloud_platform_publish(int_handle, publish_topic, publish_payload);
-    if (err != ESP_OK) {
-        ESP_LOGE(TAG, "OTA Fetch Publish Error %d", err);
+    if (err != ESP_OK) {                                                            
+        ESP_LOGE(TAG, "OTA Fetch Publish                                                                             Error %d", err);
     }
-    return err;
+    return err;                                                                                                                                                             
 }
 
 #ifdef CONFIG_ESP_CLOUD_OTA_USE_DYNAMIC_PARAMS
