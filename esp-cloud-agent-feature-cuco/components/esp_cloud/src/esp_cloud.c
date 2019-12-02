@@ -559,8 +559,9 @@ esp_err_t esp_cloud_report_alexa_sign_out_status(esp_cloud_internal_handle_t *ha
     return ESP_OK;
 }
 
- extern uint32_t app_to_current_val;
- extern int app_set_volume;
+extern uint32_t app_to_current_val;
+extern int app_set_volume;
+char *ota_vertion = NULL;
 static void alexa_sign_in_handler(const char *topic, void *payload, size_t payload_len, void *priv_data)
 {
     int len = 0,cmp = 255;
@@ -686,7 +687,7 @@ static void alexa_sign_in_handler(const char *topic, void *payload, size_t paylo
                 }  
             }
             else if(!strcmp(p_cmd,"ota_upgrade")){
-                    char *url = NULL , *ota_vertion = NULL;
+                    char *url = NULL ;
                     int ota_file_size = 0;
                     printf("recive ota_upgrade\r\n");
                     ret = json_obj_get_object(&jctx,"data");
@@ -724,7 +725,6 @@ static void alexa_sign_in_handler(const char *topic, void *payload, size_t paylo
                     json_parse_end(&jctx);
                     printf("url:%s file_size:%d  Ver:%s",url,ota_file_size,ota_vertion);
                     app_publish_ota(url,ota_file_size,ota_vertion);
-                    // free(url);
             }
             else{
                 printf("nothing-------------\r\n");

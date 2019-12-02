@@ -25,6 +25,8 @@ typedef struct {
     char *fw_version;
 } esp_cloud_identifier_t;
 
+extern char *ota_vertion;
+
 /** Cloud configuration required during initialization */
 typedef struct {
     esp_cloud_identifier_t id;

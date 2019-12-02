@@ -138,6 +138,7 @@ static void ota_url_handler(const char *topic, void *payload, size_t payload_len
     
     if(!strcmp(ota->ota_version,int_handle->fw_version)){
         ota_report_msg_status_val_to_app(true,"have update finish");
+        report_device_info_to_server(OTA_UPDATE,ota_vertion,true,"have update finish");
         printf("have update finish\r\n");
         return;
     }else if(ota->ota_version[1]>=int_handle->fw_version[1]){
@@ -172,24 +173,21 @@ static void ota_url_handler(const char *topic, void *payload, size_t payload_len
                             // esp_cloud_report_ota_status(ota_handle, OTA_STATUS_SUCCESS, "Upgrade Finished");
                             ota_report_msg_status_val_to_app(true,"have update finish");
                         }
-
-                        
-
                         esp_restart();
                     }
                     ESP_LOGE(TAG, "Firmware Upgrades Failed");
                     goto end;
                     /* We will come here only in case of error */
-                    free(url);
-                    if (ota->last_reported_status != OTA_STATUS_FAILED) {
-                        char description[50];
-                        snprintf(description, sizeof(description), "OTA failed with Error: %d", err);
-                        ota_report_msg_status_val_to_app(true,description);
-                        // esp_cloud_report_ota_status(ota_handle, OTA_STATUS_FAILED, description);
-                    }
+                    // free(url);
+                    // if (ota->last_reported_status != OTA_STATUS_FAILED) {
+                    //     char description[50];
+                    //     snprintf(description, sizeof(description), "OTA failed with Error: %d", err);
+                    //     ota_report_msg_status_val_to_app(true,description);
+                    //     // esp_cloud_report_ota_status(ota_handle, OTA_STATUS_FAILED, description);
+                    // }
 
-                    ota->ota_in_progress = false;
-                    return;
+                    // ota->ota_in_progress = false;
+                    // return;
                 }else{
                     printf("update fail 3\r\n");
                     goto end;
@@ -243,7 +241,7 @@ static esp_err_t esp_cloud_ota_check(esp_cloud_handle_t handle, void *priv_data)
     snprintf(publish_topic, sizeof(publish_topic), "%s/%s", int_handle->device_id, OTAFETCH_TOPIC_SUFFIX);
     err = esp_cloud_platform_publish(int_handle, publish_topic, publish_payload);
     if (err != ESP_OK) {                                                            
-        ESP_LOGE(TAG, "OTA Fetch Publish                                                                             Error %d", err);
+        ESP_LOGE(TAG, "OTA Fetch Publish Error %d", err);
     }
     return err;                                                                                                                                                             
 }
@@ -262,7 +260,7 @@ esp_err_t app_publish_ota(char *url,int file_size,char * ota_version){
     snprintf(publish_topic, sizeof(publish_topic), "%s/%s", int_app_handle->device_id, OTAURL_TOPIC_SUFFIX);
     esp_err_t err = esp_cloud_platform_publish(int_app_handle, publish_topic, publish_payload);
     if (err != ESP_OK) {                                                            
-        ESP_LOGE(TAG, "OTA Fetch Publish                                                                             Error %d", err);
+        ESP_LOGE(TAG, "OTA Fetch Publish Error %d", err);
     }
     return err;  
 }
