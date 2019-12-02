@@ -371,3 +371,7 @@ typedef void (*esp_cloud_work_fn_t)(esp_cloud_handle_t handle, void *priv_data);
  * @return error in case of failures.
  */
 esp_err_t esp_cloud_queue_work(esp_cloud_handle_t handle, esp_cloud_work_fn_t work_fn, void *priv_data);
+
+void ota_report_progress_val_to_app(int progress_val);
+
+void ota_report_msg_status_val_to_app(bool result,char *msg);

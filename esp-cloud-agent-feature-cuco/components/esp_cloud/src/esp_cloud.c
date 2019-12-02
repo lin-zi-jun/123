@@ -33,6 +33,7 @@
 #include "app_prov_handlers.h"
 #include <va_mem_utils.h>
 #include "production_test.h"
+#include "esp_cloud_ota.h"
 static const char *TAG = "esp_cloud";
 
 #define INFO_TOPIC_SUFFIX       "device/info"
@@ -427,7 +428,38 @@ esp_err_t ota_report_progress_val_info(esp_cloud_internal_handle_t *handle,int p
     json_str_t jstr;
     json_str_start(&jstr, publish_payload, sizeof(publish_payload), NULL, NULL);
     json_start_object(&jstr);
-    json_obj_set_int(&jstr, "progress",progress_val);
+    json_obj_set_string(&jstr, "device_id", handle->device_id);
+    json_obj_set_int(&jstr, "ota_progress",progress_val);
+    json_end_object(&jstr);
+    json_str_end(&jstr);
+
+    char *app_topic = custom_config_storage_get("app_topic");
+    if (!app_topic) {
+        ESP_LOGE(TAG, "app_topic: fail");
+        return ESP_FAIL;
+    }
+    esp_err_t err = esp_cloud_platform_publish(handle, app_topic,publish_payload);
+    free(app_topic);
+    return err;
+}
+
+esp_err_t ota_report_progress_val_msg(esp_cloud_internal_handle_t *handle,bool result,char *msg)
+{
+    if (!handle) {
+        return ESP_FAIL;
+    }
+
+    char publish_payload[150];
+    json_str_t jstr;
+    json_str_start(&jstr, publish_payload, sizeof(publish_payload), NULL, NULL);
+    json_start_object(&jstr);
+    json_obj_set_string(&jstr, "cmd", "ota_result");
+    json_obj_set_string(&jstr, "source","device");
+    json_push_object(&jstr,"data");
+    json_obj_set_string(&jstr, "device_id", handle->device_id);
+    json_obj_set_bool(&jstr, "result",result);
+    json_obj_set_string(&jstr, "msg",msg);
+    json_pop_object(&jstr);
     json_end_object(&jstr);
     json_str_end(&jstr);
 
@@ -536,7 +568,7 @@ static void alexa_sign_in_handler(const char *topic, void *payload, size_t paylo
     auth_delegate_config_t cfg = {0};
     esp_cloud_internal_handle_t *handle = (esp_cloud_internal_handle_t *)priv_data;
 
-    printf("have alexa information------------------------------------------------------------------\r\n");
+    printf("have app information------------------------------------------------------------------\r\n");
     printf("%.*s\r\n",payload_len,(char *)payload);
     int ret = json_parse_start(&jctx, (char *)payload, (int) payload_len);
     if (ret != 0) {
@@ -585,6 +617,9 @@ static void alexa_sign_in_handler(const char *topic, void *payload, size_t paylo
             len++;
             char * p_cmd = esp_cloud_mem_calloc(1, len);
             json_obj_get_string(&jctx, "cmd",p_cmd, len);
+
+            printf("cmd:%s-----------\r\n",p_cmd);
+
             if(!strcmp(p_cmd,"alexa_unbind_req")){
                 Wait_for_alexa_out = NOT_LOG_OUT;
                 alexa_auth_delegate_signout();
@@ -650,56 +685,47 @@ static void alexa_sign_in_handler(const char *topic, void *payload, size_t paylo
                     alexa_auth_delegate_signin(&cfg);  
                 }  
             }
-            // else if(!strcmp(p_cmd,"alexa_mute_req")){
-            //         printf("recive alexa_mute_req\r\n");
-            //         ret = json_obj_get_object(&jctx,"data");
-            //         if (ret != 0) {
-            //             return;
-            //         }
-            //         bool val;
-            //         json_obj_get_bool(&jctx, "mute",&val);
-            //         ESP_LOGI(TAG, "val: %d",val);   
-            //         app_to_current_val = 1230;
-            //         json_obj_leave_object(&jctx);
-            //         json_parse_end(&jctx);
-            // }
-            // else if(!strcmp(p_cmd,"alexa_talk_req")){
-            //         printf("recive alexa_talk_req\r\n");
-              
-            //         ret = json_obj_get_object(&jctx,"data");
-            //         if (ret != 0) {
-            //             return;
-            //         }
-            //         app_to_current_val = 600;
-            //         json_obj_leave_object(&jctx);
-            //         json_parse_end(&jctx);
-            // }
-            // else if(!strcmp(p_cmd,"alexa_volume_req")){
-            //         printf("recive alexa_volume_req\r\n");
-              
-            //         ret = json_obj_get_object(&jctx,"data");
-            //         if (ret != 0) {
-            //             return;
-            //         }
-            //         int volume=100;
-            //         json_obj_get_int(&jctx, "volume",&volume);
-            //         app_set_volume = volume;
-            //         ESP_LOGI(TAG, "volume: %d", app_set_volume);
-            //         json_obj_leave_object(&jctx);
-            //         json_parse_end(&jctx);
-            //         app_to_current_val = 2480;
-            // }
-            // else if(!strcmp(p_cmd,"alexa_wifi_reset_req")){
-            //         printf("recive alexa_wifi_reset_req\r\n");
-              
-            //         ret = json_obj_get_object(&jctx,"data");
-            //         if (ret != 0) {
-            //             return;
-            //         }
-            //          json_obj_leave_object(&jctx);
-            //          json_parse_end(&jctx);
-            //         app_to_current_val = 2000;
-            // }
+            else if(!strcmp(p_cmd,"ota_upgrade")){
+                    char *url = NULL , *ota_vertion = NULL;
+                    int ota_file_size = 0;
+                    printf("recive ota_upgrade\r\n");
+                    ret = json_obj_get_object(&jctx,"data");
+                    if (ret != 0) {
+                        return;
+                    }
+
+                    ret = json_obj_get_strlen(&jctx,"ota_url",&len);
+                    if (ret != ESP_OK) {
+                        return;
+                    }
+                    len++;
+                    url = esp_cloud_mem_calloc(1, len);
+                    if (!url) {
+                        return;
+                    }
+                    json_obj_get_string(&jctx, "ota_url",url, len);
+                    len = 0;  
+
+                    json_obj_get_int(&jctx, "ota_size",&ota_file_size);
+
+                    ret = json_obj_get_strlen(&jctx,"ota_version",&len);
+                    if (ret != ESP_OK) {
+                        return;
+                    }
+                    len++;
+                    ota_vertion = esp_cloud_mem_calloc(1, len);
+                    if (!ota_vertion) {
+                        return;
+                    }
+                    
+                    json_obj_get_string(&jctx, "ota_version",ota_vertion,len);
+                    len = 0; 
+                    json_obj_leave_object(&jctx);
+                    json_parse_end(&jctx);
+                    printf("url:%s file_size:%d  Ver:%s",url,ota_file_size,ota_vertion);
+                    app_publish_ota(url,ota_file_size,ota_vertion);
+                    // free(url);
+            }
             else{
                 printf("nothing-------------\r\n");
             }
@@ -866,4 +892,9 @@ char *esp_cloud_get_device_id(esp_cloud_handle_t handle)
 void ota_report_progress_val_to_app(int progress_val){
     
     ota_report_progress_val_info(int_ota_report_handle,progress_val);
+}
+
+
+void ota_report_msg_status_val_to_app(bool result,char *msg){
+    ota_report_progress_val_msg(int_ota_report_handle,result,msg);
 }

@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 #include <stdint.h>
+#include <string.h>
 #include <json_parser.h>
 #include <json_generator.h>
 #include <esp_log.h>
@@ -22,7 +23,10 @@
 #include "esp_cloud_mem.h"
 #include "esp_cloud_internal.h"
 #include "esp_cloud_platform.h"
-
+#include <esp_cloud_storage.h>
+#include "app_auth_user.h"
+#include "freertos/task.h"
+#include "freertos/FreeRTOS.h"
 static const char *TAG = "esp_cloud_ota";
 
 #define OTAURL_TOPIC_SUFFIX     "device/otaurl"
@@ -33,7 +37,7 @@ typedef struct {
     esp_cloud_handle_t handle;
     esp_cloud_ota_callback_t ota_cb;
     void *ota_priv;
-    char *ota_job_id;
+    char *ota_version;
     bool ota_in_progress;
     ota_status_t last_reported_status;
 } esp_cloud_ota_t;
@@ -69,7 +73,7 @@ esp_err_t esp_cloud_report_ota_status(esp_cloud_ota_handle_t ota_handle, ota_sta
     json_str_start(&jstr, publish_payload, sizeof(publish_payload), NULL, NULL);
     json_start_object(&jstr);
     json_obj_set_string(&jstr, "device_id", int_handle->device_id);
-    json_obj_set_string(&jstr, "ota_job_id", ota->ota_job_id);
+    json_obj_set_int(&jstr, "ota_version", ota->ota_version);
     json_obj_set_string(&jstr, "device_otastatus", ota_status_to_string(status));
     json_obj_set_string(&jstr, "additional_info", additional_info);
     json_end_object(&jstr);
@@ -94,103 +98,129 @@ static void ota_url_handler(const char *topic, void *payload, size_t payload_len
     }
     esp_cloud_ota_handle_t ota_handle = priv_data;
     esp_cloud_ota_t *ota = (esp_cloud_ota_t *)ota_handle;
+                         
+    esp_cloud_internal_handle_t *int_handle = (esp_cloud_internal_handle_t *)ota->handle;
+
     if (ota->ota_in_progress) {
         return;
     }
     ota->ota_in_progress = true;
-    /* Starting Firmware Upgrades */
-    // ESP_LOGI(TAG, "Upgrade Handler got:%.*s on %s topic\n", (int) payload_len, (char *)payload, topic);
     ESP_LOGI(TAG, "Upgrade Handler got:%.*s\n", (int) payload_len, (char *)payload);
-    /*
-    {
-    "url": "<fw_url>",
-    "fwversion": "<fw_version>",
-    "filesize": <size_in_bytes>
-    }
-    */
+
     jparse_ctx_t jctx;
-    char *url = NULL, *ota_job_id = NULL;
+    char *url = NULL;
     int ret = json_parse_start(&jctx, (char *)payload, (int) payload_len);
     if (ret != 0) {
-        esp_cloud_report_ota_status(ota_handle, OTA_STATUS_FAILED, "Aborted. JSON Payload error");
+        // esp_cloud_report_ota_status(ota_handle, OTA_STATUS_FAILED, "Aborted. JSON Payload error");
+        ota_report_msg_status_val_to_app(false,"Aborted. JSON Payload error");
         ota->ota_in_progress = false;
         return;
     }
+
     int len = 0;
-    ret = json_obj_get_strlen(&jctx, "ota_job_id", &len);
+    ret = json_obj_get_strlen(&jctx, "ota_version", &len);
     if (ret != ESP_OK) {
-        esp_cloud_report_ota_status(ota_handle, OTA_STATUS_FAILED, "Aborted. OTA Updated ID not found in JSON");
+        ota_report_msg_status_val_to_app(false,"Aborted. ota_version not found in JSON");
+        // esp_cloud_report_ota_status(ota_handle, OTA_STATUS_FAILED, "Aborted. URL not found in JSON");
         goto end;
     }
     len++; /* Increment for NULL character */
-    ota_job_id = esp_cloud_mem_calloc(1, len);
-    if (!ota_job_id) {
-        esp_cloud_report_ota_status(ota_handle, OTA_STATUS_FAILED, "Aborted. OTA Updated ID memory allocation failed");
-        goto end;
-    }
-    json_obj_get_string(&jctx, "ota_job_id", ota_job_id, len);
-    ESP_LOGI(TAG, "OTA Update ID: %s", ota_job_id);
-    ota->ota_job_id = ota_job_id;
-    len = 0;
-    ret = json_obj_get_strlen(&jctx, "url", &len);
-    if (ret != ESP_OK) {
-        esp_cloud_report_ota_status(ota_handle, OTA_STATUS_FAILED, "Aborted. URL not found in JSON");
-        goto end;
-    }
-    len++; /* Increment for NULL character */
-    url = esp_cloud_mem_calloc(1, len);
-    if (!url) {
-        esp_cloud_report_ota_status(ota_handle, OTA_STATUS_FAILED, "Aborted. URL memory allocation failed");
-        goto end;
-    }
-    json_obj_get_string(&jctx, "url", url, len);
-    ESP_LOGI(TAG, "URL: %s", url);
+    ota->ota_version = esp_cloud_mem_calloc(1, len);
 
+    ret = json_obj_get_string(&jctx, "ota_version", ota->ota_version,len);
+     if (ret != ESP_OK) {
+        ota_report_msg_status_val_to_app(false,"Aborted. ota_version not found in JSON");
+        // esp_cloud_report_ota_status(ota_handle, OTA_STATUS_FAILED, "Aborted. ota_version not found in JSON");
+        goto end;
+    }
+    ota_report_progress_val_to_app(0);
+    printf("remote:%s---cur%s\r\n",ota->ota_version,int_handle->fw_version);
     
-    json_obj_get_int(&jctx, "file_size", &filesize);
-    ESP_LOGI(TAG, "File Size: %d", filesize);
+    if(!strcmp(ota->ota_version,int_handle->fw_version)){
+        ota_report_msg_status_val_to_app(true,"have update finish");
+        printf("have update finish\r\n");
+        return;
+    }else if(ota->ota_version[1]>=int_handle->fw_version[1]){
+            if(ota->ota_version[3]>=int_handle->fw_version[3]){
+                if(ota->ota_version[5]>=int_handle->fw_version[5]){
+                    len = 0;
+                    ret = json_obj_get_strlen(&jctx, "url", &len);
+                    if (ret != ESP_OK) {
+                        ota_report_msg_status_val_to_app(false,"Aborted. URL not found in JSON");
+                        // esp_cloud_report_ota_status(ota_handle, OTA_STATUS_FAILED, "Aborted. URL not found in JSON");
+                        goto end;
+                    }
+                    len++; /* Increment for NULL character */
+                    url = esp_cloud_mem_calloc(1, len);
+                    if (!url) {
+                        // esp_cloud_report_ota_status(ota_handle, OTA_STATUS_FAILED, "Aborted. URL memory allocation failed");
+                        ota_report_msg_status_val_to_app(false,"Aborted. URL memory allocation failed");
+                        goto end;
+                    }
+                    json_obj_get_string(&jctx, "url", url, len);
+                    ESP_LOGI(TAG, "URL: %s", url);
 
-    json_parse_end(&jctx);
+                    json_obj_get_int(&jctx, "file_size", &filesize);
+                    ESP_LOGI(TAG, "File Size: %d", filesize);
 
-    esp_cloud_report_ota_status(ota_handle, OTA_STATUS_IN_PROGRESS, "Starting the Upgrade");
-    esp_err_t err = ota->ota_cb((esp_cloud_ota_handle_t)ota, url, ota->ota_priv);
-    if (err == ESP_OK) {
-        if (ota->last_reported_status != OTA_STATUS_SUCCESS) {
-            esp_cloud_report_ota_status(ota_handle, OTA_STATUS_SUCCESS, "Upgrade Finished");
-        }
-        esp_restart();
+                    json_parse_end(&jctx);
+
+                    // esp_cloud_report_ota_status(ota_handle, OTA_STATUS_IN_PROGRESS, "Starting the Upgrade");
+                    esp_err_t err = ota->ota_cb((esp_cloud_ota_handle_t)ota, url, ota->ota_priv);
+                    if (err == ESP_OK) {
+                        if (ota->last_reported_status != OTA_STATUS_SUCCESS) {
+                            // esp_cloud_report_ota_status(ota_handle, OTA_STATUS_SUCCESS, "Upgrade Finished");
+                            ota_report_msg_status_val_to_app(true,"have update finish");
+                        }
+
+                        
+
+                        esp_restart();
+                    }
+                    ESP_LOGE(TAG, "Firmware Upgrades Failed");
+                    goto end;
+                    /* We will come here only in case of error */
+                    free(url);
+                    if (ota->last_reported_status != OTA_STATUS_FAILED) {
+                        char description[50];
+                        snprintf(description, sizeof(description), "OTA failed with Error: %d", err);
+                        ota_report_msg_status_val_to_app(true,description);
+                        // esp_cloud_report_ota_status(ota_handle, OTA_STATUS_FAILED, description);
+                    }
+
+                    ota->ota_in_progress = false;
+                    return;
+                }else{
+                    printf("update fail 3\r\n");
+                    goto end;
+                }
+            }else{
+                printf("update fail 2\r\n");
+                goto end;
+            }
+    }else{
+        printf("update fail 1\r\n");
+        goto end;
     }
-    ESP_LOGE(TAG, "Firmware Upgrades Failed");
-    esp_restart();
-    /* We will come here only in case of error */
-    free(url);
-    if (ota->last_reported_status != OTA_STATUS_FAILED) {
-        char description[50];
-        snprintf(description, sizeof(description), "OTA failed with Error: %d", err);
-        esp_cloud_report_ota_status(ota_handle, OTA_STATUS_FAILED, description);
-    }
-    free(ota_job_id);
-    ota->ota_job_id = NULL;
-    ota->ota_in_progress = false;
-    return;
-end:
+    
+end: 
+    ota_report_msg_status_val_to_app(false,"fail");
     if (url) {
         free(url);
     }
-    if (ota_job_id) {
-        free(ota_job_id);
-        ota->ota_job_id = NULL;
-    }
     json_parse_end(&jctx);
     ota->ota_in_progress = false;
+     vTaskDelay(100/ portTICK_PERIOD_MS);
+    esp_restart();
     return;
 }
 
+esp_cloud_internal_handle_t *int_app_handle;
 static esp_err_t esp_cloud_ota_check(esp_cloud_handle_t handle, void *priv_data)
 {
     char subscribe_topic[100]={0};
     esp_cloud_internal_handle_t *int_handle = (esp_cloud_internal_handle_t *)handle;
-
+    int_app_handle = (esp_cloud_internal_handle_t *)handle;
     snprintf(subscribe_topic, sizeof(subscribe_topic),"%s/%s", int_handle->device_id, OTAURL_TOPIC_SUFFIX);
 
     ESP_LOGI(TAG, "Subscribing to: %s", subscribe_topic);
@@ -217,6 +247,26 @@ static esp_err_t esp_cloud_ota_check(esp_cloud_handle_t handle, void *priv_data)
     }
     return err;                                                                                                                                                             
 }
+
+esp_err_t app_publish_ota(char *url,int file_size,char * ota_version){
+    char publish_payload[200];
+    json_str_t jstr;
+    json_str_start(&jstr, publish_payload, sizeof(publish_payload), NULL, NULL);
+    json_start_object(&jstr);
+    json_obj_set_string(&jstr, "url",url);
+    json_obj_set_int(&jstr, "file_size", file_size);
+     json_obj_set_string(&jstr, "ota_version",ota_version);
+    json_end_object(&jstr);
+    json_str_end(&jstr);
+    char publish_topic[100]={0};
+    snprintf(publish_topic, sizeof(publish_topic), "%s/%s", int_app_handle->device_id, OTAURL_TOPIC_SUFFIX);
+    esp_err_t err = esp_cloud_platform_publish(int_app_handle, publish_topic, publish_payload);
+    if (err != ESP_OK) {                                                            
+        ESP_LOGE(TAG, "OTA Fetch Publish                                                                             Error %d", err);
+    }
+    return err;  
+}
+
 
 #ifdef CONFIG_ESP_CLOUD_OTA_USE_DYNAMIC_PARAMS
 static esp_err_t esp_cloud_ota_update_cb(const char *name, esp_cloud_param_val_t *param, void *priv_data)
