@@ -424,12 +424,16 @@ esp_err_t ota_report_progress_val_info(esp_cloud_internal_handle_t *handle,int p
         return ESP_FAIL;
     }
 
-    char publish_payload[100];
+    char publish_payload[200];
     json_str_t jstr;
     json_str_start(&jstr, publish_payload, sizeof(publish_payload), NULL, NULL);
     json_start_object(&jstr);
+    json_obj_set_string(&jstr, "cmd", "ota_progress");
+    json_obj_set_string(&jstr, "source","device");
+    json_push_object(&jstr,"data");
     json_obj_set_string(&jstr, "device_id", handle->device_id);
     json_obj_set_int(&jstr, "ota_progress",progress_val);
+    json_pop_object(&jstr);
     json_end_object(&jstr);
     json_str_end(&jstr);
 
@@ -443,13 +447,13 @@ esp_err_t ota_report_progress_val_info(esp_cloud_internal_handle_t *handle,int p
     return err;
 }
 
-esp_err_t ota_report_progress_val_msg(esp_cloud_internal_handle_t *handle,bool result,char *msg)
+esp_err_t ota_report_progress_val_msg(esp_cloud_internal_handle_t *handle,int result)
 {
     if (!handle) {
         return ESP_FAIL;
     }
 
-    char publish_payload[150];
+    char publish_payload[200];
     json_str_t jstr;
     json_str_start(&jstr, publish_payload, sizeof(publish_payload), NULL, NULL);
     json_start_object(&jstr);
@@ -457,8 +461,7 @@ esp_err_t ota_report_progress_val_msg(esp_cloud_internal_handle_t *handle,bool r
     json_obj_set_string(&jstr, "source","device");
     json_push_object(&jstr,"data");
     json_obj_set_string(&jstr, "device_id", handle->device_id);
-    json_obj_set_bool(&jstr, "result",result);
-    json_obj_set_string(&jstr, "msg",msg);
+    json_obj_set_int(&jstr, "result",result);
     json_pop_object(&jstr);
     json_end_object(&jstr);
     json_str_end(&jstr);
@@ -803,17 +806,13 @@ static void esp_cloud_task(void *param)
         esp_cloud_platform_wait(handle);
 
         if(Wait_for_alexa_in == LOGED_IN){
-            if(aws_iot_connect){
-                esp_cloud_update_bool_param(esp_cloud_get_handle(), "alexa", true);
-            }
+            esp_cloud_update_bool_param(esp_cloud_get_handle(), "alexa", true);
             esp_cloud_report_device_state(handle);
             Wait_for_alexa_in = LOGED_IN_NOTIVE;
         }
 
         if(Wait_for_alexa_out == NOT_LOG_OUT){
-            if(aws_iot_connect){
-                esp_cloud_update_bool_param(esp_cloud_get_handle(), "alexa", false);
-            }
+            esp_cloud_update_bool_param(esp_cloud_get_handle(), "alexa", false);
             Wait_for_alexa_out = LOGED__OUT;
             Wait_for_alexa_in = NOT_LOG_IN;
         }
@@ -895,6 +894,6 @@ void ota_report_progress_val_to_app(int progress_val){
 }
 
 
-void ota_report_msg_status_val_to_app(bool result,char *msg){
-    ota_report_progress_val_msg(int_ota_report_handle,result,msg);
+void ota_report_msg_status_val_to_app(int result){
+    ota_report_progress_val_msg(int_ota_report_handle,result);
 }

@@ -318,7 +318,6 @@ void disconnectCallbackHandler(AWS_IoT_Client *pClient, void *data)
 {
     ESP_LOGW(TAG, "MQTT Disconnect");
     IoT_Error_t rc = FAILURE;
-    aws_iot_connect = false;
     if(NULL == pClient) {
         return;
     }
@@ -330,8 +329,6 @@ void disconnectCallbackHandler(AWS_IoT_Client *pClient, void *data)
         rc = aws_iot_mqtt_attempt_reconnect(pClient);
         if(NETWORK_RECONNECTED == rc) {
             ESP_LOGW(TAG, "Manual Reconnect Successful");
-            aws_iot_connect = true;
-            // pro_test_item = 3;
         } else {
             ESP_LOGW(TAG, "Manual Reconnect Failed - %d", rc);
         }
@@ -368,7 +365,7 @@ esp_err_t esp_cloud_platform_connect(esp_cloud_internal_handle_t *handle)
     scp.mqttClientIdLen = (uint16_t) strlen(handle->device_id);
 
     ESP_LOGI(TAG, "Connecting to AWS.....");
-    int reconnect_attempts = handle->reconnect_attempts ? handle->reconnect_attempts : 1;
+    // int reconnect_attempts = handle->reconnect_attempts ? handle->reconnect_attempts : 1;
     do {
         rc = aws_iot_shadow_connect(&platform_data->mqttClient, &scp);
         if(SUCCESS != rc) {
@@ -376,18 +373,18 @@ esp_err_t esp_cloud_platform_connect(esp_cloud_internal_handle_t *handle)
             dev_states = IOT_FAIL;
             vTaskDelay(1000 / portTICK_RATE_MS);
         }else{
-            aws_iot_connect = true;
             dev_states = IOT_OK;
+            ESP_LOGI(TAG, "connecting to %s:%d",sp.pHost, sp.port);
         }
-        if (handle->reconnect_attempts) {
-            reconnect_attempts--;
-        }
+        // if (handle->reconnect_attempts) {
+        //     reconnect_attempts--;
+        // }
     // } while(SUCCESS != rc && reconnect_attempts);
     } while(SUCCESS != rc);
-    if (reconnect_attempts == 0) {
-        ESP_LOGE(TAG, "Could not connect to cloud even after %d attempts", handle->reconnect_attempts);
-        return ESP_FAIL;
-    }
+    // if (reconnect_attempts == 0) {
+    //     ESP_LOGE(TAG, "Could not connect to cloud even after %d attempts", handle->reconnect_attempts);
+    //     return ESP_FAIL;
+    // }
     return ESP_OK;
 }
 
