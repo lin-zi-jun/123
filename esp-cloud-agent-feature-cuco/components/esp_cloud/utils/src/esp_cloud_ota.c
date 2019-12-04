@@ -247,6 +247,8 @@ static esp_err_t esp_cloud_ota_check(esp_cloud_handle_t handle, void *priv_data)
         ota_report_msg_status_val_to_app(OTA_FAIT_2);
         custom_config_storage_set_u8("OTA_F",CUSTOM_INIT);
         printf("when fail clear ota update flag \r\n");
+    }else if(ota_flag == FORCE_OTA){
+        report_device_info_to_server(OTA_UPDATE,int_handle->fw_version,true,"Finished Successfully");
     }
 
 

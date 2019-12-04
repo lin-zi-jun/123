@@ -502,7 +502,8 @@ esp_err_t esp_cloud_platform_report_state(esp_cloud_internal_handle_t *handle)
         platform_data->reported_handles[platform_data->reported_count++] =
                 &platform_data->dynamic_params[i];
     }
-    shadow_update(handle);
+    printf("platform_data->reported_count:%d\n",platform_data->reported_count);
+    shadow_update(handle);  
     while(platform_data->shadowUpdateInProgress) {
         aws_iot_shadow_yield(&platform_data->mqttClient, 1000);
     }
