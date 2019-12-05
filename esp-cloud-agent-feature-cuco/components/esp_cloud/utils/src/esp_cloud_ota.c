@@ -144,9 +144,11 @@ static void ota_url_handler(const char *topic, void *payload, size_t payload_len
         printf("have update finish\r\n");
         ota->ota_in_progress = false;
         if(ota_update_handle.type == FORCE_OTA_START){
-            custom_config_storage_set_u8("OTA_F",FORCE_OTA_START);
+            printf("set FORCE_OTA_START:3\r\n");
+            custom_config_storage_set_u8("OTA_F",FORCE_OTA_FINISH);
         }else{
-            custom_config_storage_set_u8("OTA_F",SEND_OTA_OER);
+            printf("set FORCE_OTA_FINISH:1\r\n");
+            custom_config_storage_set_u8("OTA_F",APP_OTA_OK);
         }
         esp_restart();
     }else if(ota->ota_version[0]>int_handle->fw_version[0]){
@@ -242,28 +244,29 @@ static esp_err_t esp_cloud_ota_check(esp_cloud_handle_t handle, void *priv_data)
     uint8_t ota_flag = custom_config_storage_get_u8("OTA_F");
     if(ota_flag == CUSTOM_INVALID){
         custom_config_storage_set_u8("OTA_F",CUSTOM_INIT);
-        printf("set ota update flag init\r\n");
-    }else if(ota_flag == SEND_OTA_OER){
+        printf("flag CUSTOM_INIT:%d\r\n",CUSTOM_INIT);
+
+    }else if(ota_flag == APP_OTA_OK){
         ota_report_msg_status_val_to_app(OTA_FINISH_2);
         report_device_info_to_server(OTA_UPDATE,APP_TYPE,int_handle->fw_version,true,"App Finished Successfully");
         custom_config_storage_set_u8("OTA_F",CUSTOM_INIT);
-        printf("when finish clear ota update flag \r\n");
-    }else if(ota_flag == OTA_FAIL){
+        printf("flag APP_OTA_OK:%d\r\n",APP_OTA_OK);
+
+    }else if(ota_flag == APP_OTA_FAIL){
         ota_report_msg_status_val_to_app(OTA_FAIT_2);
         custom_config_storage_set_u8("OTA_F",CUSTOM_INIT);
-        printf("when fail clear ota update flag \r\n");
+        printf("flag APP_OTA_FAIL:%d\r\n",APP_OTA_FAIL);
+
     }else if(ota_flag == FORCE_OTA_START){
         report_device_info_to_server(OTA_UPDATE,SERVER_TYPE,int_handle->fw_version,false,"Force fail");
         custom_config_storage_set_u8("OTA_F",CUSTOM_INIT);
-    }else if(ota_flag == FORCE_OTA_END){
+        printf("flag FORCE_OTA_START:%d\r\n",FORCE_OTA_START);
+
+    }else if(ota_flag == FORCE_OTA_FINISH){
         report_device_info_to_server(OTA_UPDATE,SERVER_TYPE,int_handle->fw_version,true,"Force Finished Successfully");
         custom_config_storage_set_u8("OTA_F",CUSTOM_INIT);
-
-        int ota_size = 0;
-        esp_cloud_update_int_param(esp_cloud_get_handle(),"ota_size",ota_size);
-        esp_cloud_update_string_param(esp_cloud_get_handle(),"ota_url","null");
-        esp_cloud_update_string_param(esp_cloud_get_handle(),"ota_version","null");
-
+        ota_update_handle.type = FORCE_OTA_UPDATE;
+        printf("flag FORCE_OTA_FINISH:%d\r\n",FORCE_OTA_START);
     }
 
 

@@ -777,6 +777,9 @@ static esp_err_t esp_cloud_alexa_sign_in_topic(esp_cloud_handle_t handle, void *
 extern void aws_iot_done_cb();
 extern const int AWS_IOT_DONE_BIT;
 extern void test_alexa_mem(void);
+extern int  ota_size;
+extern char ota_ver[10];
+extern char ota_url[255];
 static void esp_cloud_task(void *param)
 {
     printf("------------------------------------------esp cloud start-----------------------------------------------\r\n");
@@ -807,7 +810,6 @@ static void esp_cloud_task(void *param)
 
         if(Wait_for_alexa_in == LOGED_IN){
             esp_cloud_update_bool_param(esp_cloud_get_handle(), "alexa", true);
-            esp_cloud_report_device_state(handle);
             Wait_for_alexa_in = LOGED_IN_NOTIVE;
         }
 
@@ -815,6 +817,27 @@ static void esp_cloud_task(void *param)
             esp_cloud_update_bool_param(esp_cloud_get_handle(), "alexa", false);
             Wait_for_alexa_out = LOGED__OUT;
             Wait_for_alexa_in = NOT_LOG_IN;
+        }
+
+        if(ota_update_handle.type == FORCE_OTA_INIT){
+
+            ota_update_handle.type = FORCE_OTA_START;
+            custom_config_storage_set_u8("OTA_F",FORCE_OTA_START);
+            app_publish_ota(ota_url,ota_size,ota_ver);
+
+        }else if(ota_update_handle.type == FORCE_OTA_UPDATE){
+            // ota_size = 0;
+            // esp_err_t errr = esp_cloud_update_int_param(esp_cloud_get_handle(),"ota_size",ota_size);
+            // if(errr!=ESP_OK) ESP_LOGE(TAG,"update otasize fail:%d",errr);
+
+            // strncpy(ota_url,"null",sizeof(ota_url)); 
+            // errr = esp_cloud_update_string_param(esp_cloud_get_handle(),"ota_url",ota_url);
+            // if(errr!=ESP_OK) ESP_LOGE(TAG,"update ota_url fail:%d",errr);
+
+            // strncpy(ota_ver,"null",sizeof(ota_ver)); 
+            // errr = esp_cloud_update_string_param(esp_cloud_get_handle(),"ota_version",ota_ver);
+            // if(errr!=ESP_OK) ESP_LOGE(TAG,"update ota_version fail:%d",errr);
+            // ota_update_handle.type = MAX_OTA_CUSTOM;
         }
     }
     esp_cloud_platform_disconnect(handle);
@@ -889,7 +912,6 @@ char *esp_cloud_get_device_id(esp_cloud_handle_t handle)
 
 
 void ota_report_progress_val_to_app(int progress_val){
-    
     ota_report_progress_val_info(int_ota_report_handle,progress_val);
 }
 
