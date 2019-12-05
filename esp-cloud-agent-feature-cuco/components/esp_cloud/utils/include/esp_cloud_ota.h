@@ -74,4 +74,13 @@ esp_err_t esp_cloud_enable_ota(esp_cloud_handle_t handle, esp_cloud_ota_callback
  * @return error on failure
  */
 esp_err_t esp_cloud_report_ota_status(esp_cloud_ota_handle_t ota_handle, ota_status_t status, char *additional_info);
+
 esp_err_t app_publish_ota(char *url,int file_size,char * ota_version);
+
+typedef struct _ota_status
+{
+    int type;
+}_ota_status;
+
+_ota_status ota_update_handle;
+
