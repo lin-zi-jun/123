@@ -1,31 +1,20 @@
-/*
-  * ESPRESSIF MIT License
-  *
-  * Copyright (c) 2017 <ESPRESSIF SYSTEMS (SHANGHAI) PTE LTD>
-  *
-  * Permission is hereby granted for use on ESPRESSIF SYSTEMS products only, in which case,
-  * it is free of charge, to any person obtaining a copy of this software and associated
-  * documentation files (the "Software"), to deal in the Software without restriction, including
-  * without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense,
-  * and/or sell copies of the Software, and to permit persons to whom the Software is furnished
-  * to do so, subject to the following conditions:
-  *
-  * The above copyright notice and this permission notice shall be included in all copies or
-  * substantial portions of the Software.
-  *
-  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-  * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-  * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-  * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
-  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-  *
-  */
+// Copyright 2015-2016 Espressif Systems (Shanghai) PTE LTD
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
 
-#include <freertos/FreeRTOS.h>
-#include <freertos/task.h>
-#include <esp_system.h>
-#include <iot_button.h>
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "esp_system.h"
+#include "iot_button.h"
 
 CButton::CButton(gpio_num_t gpio_num, button_active_t active_level)
 {
@@ -48,14 +37,9 @@ esp_err_t CButton::set_serial_cb(button_cb cb, void* arg, TickType_t interval_ti
     return iot_button_set_serial_cb(m_btn_handle, start_after_sec, interval_tick, cb, arg);
 }
 
-esp_err_t CButton::add_on_press_cb(uint32_t press_sec, button_cb cb, void* arg)
+esp_err_t CButton::add_custom_cb(uint32_t press_sec, button_cb cb, void* arg)
 {
-    return iot_button_add_on_press_cb(m_btn_handle, press_sec, cb, arg);
-}
-
-esp_err_t CButton::add_on_release_cb(uint32_t press_sec, button_cb cb, void* arg)
-{
-    return iot_button_add_on_release_cb(m_btn_handle, press_sec, cb, arg);
+    return iot_button_add_custom_cb(m_btn_handle, press_sec, cb, arg);
 }
 
 esp_err_t CButton::rm_cb(button_cb_type_t type)

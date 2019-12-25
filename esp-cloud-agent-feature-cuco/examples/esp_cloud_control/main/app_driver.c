@@ -41,7 +41,7 @@ void app_driver_init()
     button_handle_t btn_handle = iot_button_create(BUTTON_GPIO, BUTTON_ACTIVE_LEVEL);
     if (btn_handle) {
         iot_button_set_evt_cb(btn_handle, BUTTON_CB_RELEASE, push_btn_cb, "RELEASE");
-        iot_button_add_on_press_cb(btn_handle, 3, button_press_3sec_cb, NULL);
+        iot_button_add_custom_cb(btn_handle, 3, button_press_3sec_cb, NULL);
     }
 
     /* Configure output */
