@@ -25,7 +25,7 @@
 #include "esp_cloud_storage.h"
 #include "esp_cloud_platform.h"
 #include <freertos/event_groups.h>
-#include "app_auth_user.h"
+#include "user_auth.h"
 #include "app_auth.h"
 #include <alexa.h>
 #include "nvs_flash.h"
@@ -625,14 +625,14 @@ static void alexa_sign_in_handler(const char *topic, void *payload, size_t paylo
             printf("cmd:%s-----------\r\n",p_cmd);
 
             if(!strcmp(p_cmd,"alexa_unbind_req")){
-                Wait_for_alexa_out = NOT_LOG_OUT;
+                alexa_and_user_config.Wait_for_alexa_out = NOT_LOG_OUT;
                 alexa_auth_delegate_signout();
                 printf("alexa_auth_delegate_signout\r\n");
                 return;
             }else if(!strcmp(p_cmd,"alexa_req")){
 
                 printf("recive alexa_bind_req\r\n");
-                if(Wait_for_alexa_in == NOT_LOG_IN){
+                if(alexa_and_user_config.Wait_for_alexa_in == NOT_LOG_IN){
                     printf("Wait_for_alexa_in\r\n");
                     ret = json_obj_get_object(&jctx,"data");
                     if (ret != 0) {
@@ -799,7 +799,7 @@ static void esp_cloud_task(void *param)
     esp_cloud_report_device_state(handle);
     esp_cloud_alexa_sign_in_topic(handle,handle);
 
-    if(user_bind_flag == NOTICE_BINDED){
+    if(alexa_and_user_config.user_bind_flag == NOTICE_BINDED){
         esp_cloud_report_user_bind_info(handle,bind_status_code);
     }
     app_aws_done_cb();
@@ -808,15 +808,15 @@ static void esp_cloud_task(void *param)
         esp_cloud_handle_work_queue(handle);
         esp_cloud_platform_wait(handle);
 
-        if(Wait_for_alexa_in == LOGED_IN){
+        if(alexa_and_user_config.Wait_for_alexa_in == LOGED_IN){
             esp_cloud_update_bool_param(esp_cloud_get_handle(), "alexa", true);
-            Wait_for_alexa_in = LOGED_IN_NOTIVE;
+            alexa_and_user_config.Wait_for_alexa_in = LOGED_IN_NOTIVE;
         }
 
-        if(Wait_for_alexa_out == NOT_LOG_OUT){
+        if(alexa_and_user_config.Wait_for_alexa_out == NOT_LOG_OUT){
             esp_cloud_update_bool_param(esp_cloud_get_handle(), "alexa", false);
-            Wait_for_alexa_out = LOGED__OUT;
-            Wait_for_alexa_in = NOT_LOG_IN;
+            alexa_and_user_config.Wait_for_alexa_out = LOGED_OUT;
+            alexa_and_user_config.Wait_for_alexa_in = NOT_LOG_IN;
         }
 
         if(ota_update_handle.type == FORCE_OTA_INIT){

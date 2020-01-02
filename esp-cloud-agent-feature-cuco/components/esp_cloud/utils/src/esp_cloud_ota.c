@@ -24,7 +24,7 @@
 #include "esp_cloud_internal.h"
 #include "esp_cloud_platform.h"
 #include <esp_cloud_storage.h>
-#include "app_auth_user.h"
+#include "user_auth.h"
 #include "freertos/task.h"
 #include "freertos/FreeRTOS.h"
 #include "app_prov_handlers.h"
@@ -95,6 +95,8 @@ extern int ota_filesize;
 static void ota_url_handler(const char *topic, void *payload, size_t payload_len, void *priv_data)
 {
     bool update_flag=false;
+    int R_Main_version = 0, R_feature_version = 0,R_fix_version = 0;
+    int C_Main_version = 0,C_feature_version = 0,C_fix_version = 0;
     if (!priv_data) {
         return;
     }
@@ -113,7 +115,6 @@ static void ota_url_handler(const char *topic, void *payload, size_t payload_len
     char *url = NULL;
     int ret = json_parse_start(&jctx, (char *)payload, (int) payload_len);
     if (ret != 0) {
-        // esp_cloud_report_ota_status(ota_handle, OTA_STATUS_FAILED, "Aborted. JSON Payload error");
         ota_report_msg_status_val_to_app(OTA_FAIL_1);
         ota->ota_in_progress = false;
         return;
@@ -123,7 +124,6 @@ static void ota_url_handler(const char *topic, void *payload, size_t payload_len
     ret = json_obj_get_strlen(&jctx, "ota_version", &len);
     if (ret != ESP_OK) {
         ota_report_msg_status_val_to_app(OTA_FAIL_1);
-        // esp_cloud_report_ota_status(ota_handle, OTA_STATUS_FAILED, "Aborted. URL not found in JSON");
         goto end;
     }
     len++; /* Increment for NULL character */
@@ -132,15 +132,26 @@ static void ota_url_handler(const char *topic, void *payload, size_t payload_len
     ret = json_obj_get_string(&jctx, "ota_version", ota->ota_version,len);
      if (ret != ESP_OK) {
         ota_report_msg_status_val_to_app(OTA_FAIL_1);
-        // esp_cloud_report_ota_status(ota_handle, OTA_STATUS_FAILED, "Aborted. ota_version not found in JSON");
         goto end;
     }
     ota_report_progress_val_to_app(0);
     printf("remote:%s---cur:%s\r\n",ota->ota_version,int_handle->fw_version);
+    int n = sscanf(ota->ota_version, "%d.%d.%d",&R_Main_version,&R_feature_version,&R_fix_version);
+    if(n!=3){
+        printf("version error\r\n");
+        return ESP_FAIL;
+    }
+    n = sscanf(int_handle->fw_version, "%d.%d.%d",&C_Main_version,&C_feature_version,&C_fix_version);
+    if(n!=3){
+        printf("version error\r\n");
+        return ESP_FAIL;
+    }
     
+    printf("%d-%d-%d-----%d-%d-%d\r\n",R_Main_version,R_feature_version,R_fix_version,C_Main_version,C_feature_version,C_fix_version);
+
     if(!strcmp(ota->ota_version,int_handle->fw_version)){
         ota_report_msg_status_val_to_app(OTA_FINISH_1);
-        report_device_info_to_server(OTA_UPDATE,APP_TYPE,ota_vertion,true,"have update finish");
+        user_bind_report(OTA_UPDATE,APP_TYPE,ota_vertion,true,"have update finish");
         printf("have update finish\r\n");
         ota->ota_in_progress = false;
         if(ota_update_handle.type == FORCE_OTA_START){
@@ -151,14 +162,14 @@ static void ota_url_handler(const char *topic, void *payload, size_t payload_len
             custom_config_storage_set_u8("OTA_F",APP_OTA_OK);
         }
         esp_restart();
-    }else if(ota->ota_version[0]>int_handle->fw_version[0]){
+    }else if(R_Main_version>C_Main_version){
           update_flag=true;
-    }else if(ota->ota_version[0]==int_handle->fw_version[0]){
-            if(ota->ota_version[2]>int_handle->fw_version[2]){
+    }else if(R_Main_version==C_Main_version){
+            if(R_feature_version>C_feature_version){
                 update_flag=true;
-            }else if(ota->ota_version[2]==int_handle->fw_version[2]){
+            }else if(R_feature_version==C_feature_version){
 
-                if(ota->ota_version[4]>int_handle->fw_version[4]){
+                if(R_fix_version>C_fix_version){
                     update_flag=true;
                 }else{
                     printf("update fail 3\r\n");
@@ -180,13 +191,11 @@ static void ota_url_handler(const char *topic, void *payload, size_t payload_len
         ret = json_obj_get_strlen(&jctx, "url", &len);
         if (ret != ESP_OK) {
             ota_report_msg_status_val_to_app(OTA_FAIL_1);
-            // esp_cloud_report_ota_status(ota_handle, OTA_STATUS_FAILED, "Aborted. URL not found in JSON");
             goto end;
         }
         len++; /* Increment for NULL character */
         url = esp_cloud_mem_calloc(1, len);
         if (!url) {
-            // esp_cloud_report_ota_status(ota_handle, OTA_STATUS_FAILED, "Aborted. URL memory allocation failed");
             ota_report_msg_status_val_to_app(OTA_FAIL_1);
             goto end;
         }
@@ -198,11 +207,9 @@ static void ota_url_handler(const char *topic, void *payload, size_t payload_len
 
         json_parse_end(&jctx);
 
-        // esp_cloud_report_ota_status(ota_handle, OTA_STATUS_IN_PROGRESS, "Starting the Upgrade");
         esp_err_t err = ota->ota_cb((esp_cloud_ota_handle_t)ota, url, ota->ota_priv);
         if (err == ESP_OK) {
             if (ota->last_reported_status != OTA_STATUS_SUCCESS) {
-                // esp_cloud_report_ota_status(ota_handle, OTA_STATUS_SUCCESS, "Upgrade Finished");
                 ota_report_msg_status_val_to_app(OTA_FINISH_1);
             }
 
@@ -248,7 +255,7 @@ static esp_err_t esp_cloud_ota_check(esp_cloud_handle_t handle, void *priv_data)
 
     }else if(ota_flag == APP_OTA_OK){
         ota_report_msg_status_val_to_app(OTA_FINISH_2);
-        report_device_info_to_server(OTA_UPDATE,APP_TYPE,int_handle->fw_version,true,"App Finished Successfully");
+        user_bind_report(OTA_UPDATE,APP_TYPE,int_handle->fw_version,true,"App Finished Successfully");
         custom_config_storage_set_u8("OTA_F",CUSTOM_INIT);
         printf("flag APP_OTA_OK:%d\r\n",APP_OTA_OK);
 
@@ -258,12 +265,12 @@ static esp_err_t esp_cloud_ota_check(esp_cloud_handle_t handle, void *priv_data)
         printf("flag APP_OTA_FAIL:%d\r\n",APP_OTA_FAIL);
 
     }else if(ota_flag == FORCE_OTA_START){
-        report_device_info_to_server(OTA_UPDATE,SERVER_TYPE,int_handle->fw_version,false,"Force fail");
+        user_bind_report(OTA_UPDATE,SERVER_TYPE,int_handle->fw_version,false,"Force fail");
         custom_config_storage_set_u8("OTA_F",CUSTOM_INIT);
         printf("flag FORCE_OTA_START:%d\r\n",FORCE_OTA_START);
 
     }else if(ota_flag == FORCE_OTA_FINISH){
-        report_device_info_to_server(OTA_UPDATE,SERVER_TYPE,int_handle->fw_version,true,"Force Finished Successfully");
+        user_bind_report(OTA_UPDATE,SERVER_TYPE,int_handle->fw_version,true,"Force Finished Successfully");
         custom_config_storage_set_u8("OTA_F",CUSTOM_INIT);
         ota_update_handle.type = FORCE_OTA_UPDATE;
         printf("flag FORCE_OTA_FINISH:%d\r\n",FORCE_OTA_START);

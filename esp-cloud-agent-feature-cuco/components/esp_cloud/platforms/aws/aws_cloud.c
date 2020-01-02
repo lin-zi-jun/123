@@ -32,7 +32,7 @@
 
 #include "esp_cloud_platform.h"
 #include "aws_custom_utils.h"
-#include "app_auth_user.h"
+#include "user_auth.h"
 // #include "production_test.h"
 #define MAX_LENGTH_OF_UPDATE_JSON_BUFFER 200
 #define AWS_TASK_STACK  12 * 1024
@@ -370,10 +370,10 @@ esp_err_t esp_cloud_platform_connect(esp_cloud_internal_handle_t *handle)
         rc = aws_iot_shadow_connect(&platform_data->mqttClient, &scp);
         if(SUCCESS != rc) {
             ESP_LOGE(TAG, "Error(%d) connecting to %s:%d", rc, sp.pHost, sp.port);
-            dev_states = IOT_FAIL;
+            alexa_and_user_config.dev_lan_states = IOT_FAIL;
             vTaskDelay(1000 / portTICK_RATE_MS);
         }else{
-            dev_states = IOT_OK;
+            alexa_and_user_config.dev_lan_states = IOT_OK;
             ESP_LOGI(TAG, "connecting to %s:%d",sp.pHost, sp.port);
         }
         // if (handle->reconnect_attempts) {

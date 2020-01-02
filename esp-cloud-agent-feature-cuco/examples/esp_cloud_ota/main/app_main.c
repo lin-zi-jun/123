@@ -95,7 +95,7 @@ void app_main()
             .name = "ESP Outlet",
             .type = "Outlet",
             .model = "ESP-Wall-Outlet-1",
-            .fw_version = FW_VERSION,
+            .fw_version = CONFIG_FIRMWARE_VERSION,
         },
         .enable_time_sync = true,
         .reconnect_attempts = 5,
