@@ -1,0 +1,111 @@
+From 5b77443d89260144341ec2b4615fbececa6ca66d Mon Sep 17 00:00:00 2001
+From: Amit Sheth <amit@espressif.com>
+Date: Tue, 31 Dec 2019 15:42:35 +0530
+Subject: [PATCH] OTA: Backported fix for issue !2249
+
+---
+ components/esp_http_client/esp_http_client.c  | 19 ++++++++++++++++++-
+ .../esp_http_client/include/esp_http_client.h | 12 ++++++++++++
+ components/esp_https_ota/src/esp_https_ota.c  | 19 +++++++++++++++++--
+ 3 files changed, 47 insertions(+), 3 deletions(-)
+
+diff --git a/components/esp_http_client/esp_http_client.c b/components/esp_http_client/esp_http_client.c
+index 4a82a50e3..c7a696551 100644
+--- a/components/esp_http_client/esp_http_client.c
++++ b/components/esp_http_client/esp_http_client.c
+@@ -747,6 +747,23 @@ static int esp_http_client_get_data(esp_http_client_handle_t client)
+     return rlen;
+ }
+ 
++bool esp_http_client_is_complete_data_received(esp_http_client_handle_t client)
++{
++    if (client->response->is_chunked) {
++        if (!client->is_chunk_complete) {
++            ESP_LOGD(TAG, "Chunks were not completely read");
++            return false;
++        }
++    } else {
++        if (client->response->data_process != client->response->content_length) {
++            ESP_LOGD(TAG, "Data processed %d != Data specified in content length %d", client->response->data_process, client->response->content_length);
++            return false;
++        }
++    }
++    return true;
++}
++
++
+ int esp_http_client_read(esp_http_client_handle_t client, char *buffer, int len)
+ {
+     esp_http_buffer_t *res_buffer = client->response->buffer;
+@@ -770,7 +787,7 @@ int esp_http_client_read(esp_http_client_handle_t client, char *buffer, int len)
+         } else {
+             is_data_remain = client->response->data_process < client->response->content_length;
+         }
+-        ESP_LOGD(TAG, "is_data_remain=%d, is_chunked=%d", is_data_remain, client->response->is_chunked);
++        ESP_LOGD(TAG, "is_data_remain=%d, is_chunked=%d, content_length=%d", is_data_remain, client->response->is_chunked, client->response->content_length);
+         if (!is_data_remain) {
+             break;
+         }
+diff --git a/components/esp_http_client/include/esp_http_client.h b/components/esp_http_client/include/esp_http_client.h
+index 4e940a6d1..a64fde15c 100644
+--- a/components/esp_http_client/include/esp_http_client.h
++++ b/components/esp_http_client/include/esp_http_client.h
+@@ -374,6 +374,18 @@ esp_err_t esp_http_client_cleanup(esp_http_client_handle_t client);
+ esp_http_client_transport_t esp_http_client_get_transport_type(esp_http_client_handle_t client);
+ 
+ 
++/**
++ * @brief      Checks if entire data in the response has been read without any error.
++ *
++ * @param[in]  client   The esp_http_client handle
++ * 
++ * @return
++ *     - true
++ *     - false
++ */
++bool esp_http_client_is_complete_data_received(esp_http_client_handle_t client);
++
++
+ #ifdef __cplusplus
+ }
+ #endif
+diff --git a/components/esp_https_ota/src/esp_https_ota.c b/components/esp_https_ota/src/esp_https_ota.c
+index 9929a1856..96c92c197 100644
+--- a/components/esp_https_ota/src/esp_https_ota.c
++++ b/components/esp_https_ota/src/esp_https_ota.c
+@@ -18,6 +18,7 @@
+ #include <esp_https_ota.h>
+ #include <esp_ota_ops.h>
+ #include <esp_log.h>
++#include <errno.h>
+ 
+ #define OTA_BUF_SIZE 256
+ static const char *TAG = "esp_https_ota";
+@@ -90,8 +91,22 @@ esp_err_t esp_https_ota(const esp_http_client_config_t *config)
+     while (1) {
+         int data_read = esp_http_client_read(client, upgrade_data_buf, OTA_BUF_SIZE);
+         if (data_read == 0) {
+-            ESP_LOGI(TAG, "Connection closed,all data received");
+-            break;
++            /*
++             * As esp_http_client_read never returns negative error code, we rely on
++             * `errno` to check for underlying transport connectivity closure if any
++             */
++            if (errno == ENOTCONN || errno == ECONNRESET) {
++                ESP_LOGE(TAG, "Connection closed, errno = %d", errno);
++                break;
++            }
++            /*  esp_https_ota_is_complete_data_received is added to check whether
++                complete image is received.
++            */
++            if (esp_http_client_is_complete_data_received(client)) {
++                ESP_LOGI(TAG, "Connection closed");
++                break;
++            }
++            ESP_LOGI(TAG, "Connection closed");
+         }
+         if (data_read < 0) {
+             ESP_LOGE(TAG, "Error: SSL data read error");
+-- 
+2.18.0
+

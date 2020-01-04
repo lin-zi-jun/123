@@ -244,6 +244,15 @@ static esp_err_t esp_cloud_ota_check(esp_cloud_handle_t handle, void *priv_data)
     esp_cloud_platform_unsubscribe(int_handle, subscribe_topic);
     esp_err_t err = esp_cloud_platform_subscribe(int_handle, subscribe_topic, ota_url_handler, priv_data);
     if(err != ESP_OK) {
+
+        for(int i=0;i<10;i++){
+            err = esp_cloud_platform_subscribe(int_handle, subscribe_topic, ota_url_handler, priv_data);
+            if(err == ESP_OK) {
+                break;
+            }
+            vTaskDelay(1000/ portTICK_PERIOD_MS);
+        }
+
         ESP_LOGE(TAG, "OTA URL Subscription Error %d", err);
         return ESP_FAIL;
     }

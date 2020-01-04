@@ -765,11 +765,19 @@ static esp_err_t esp_cloud_alexa_sign_in_topic(esp_cloud_handle_t handle, void *
     /* First unsubscribing, in case there is a stale subscription */
     esp_cloud_platform_unsubscribe(int_handle, app_topic);
     esp_err_t err = esp_cloud_platform_subscribe(int_handle, app_topic, alexa_sign_in_handler, priv_data);
-    free(app_topic);
+    
     if(err != ESP_OK) {
-        ESP_LOGE(TAG, "OTA URL Subscription Error %d", err);
-        return ESP_FAIL;
+        for(int i=0;i<10;i++){
+            err = esp_cloud_platform_subscribe(int_handle, app_topic, alexa_sign_in_handler, priv_data);
+            ESP_LOGE(TAG, "app_topic Error %d", err);
+            if(err == ESP_OK){
+                break;
+            }
+            vTaskDelay(1000 / portTICK_PERIOD_MS);
+        }
     }
+
+    free(app_topic);
     return err;
 }
 

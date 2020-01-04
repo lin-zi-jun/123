@@ -354,9 +354,11 @@ esp_err_t esp_cloud_platform_connect(esp_cloud_internal_handle_t *handle)
 
     ESP_LOGI(TAG, "Shadow Init");
     rc = aws_iot_shadow_init(&platform_data->mqttClient, &sp);
-    if (SUCCESS != rc) {
+    while (SUCCESS != rc) {
+        rc = aws_iot_shadow_init(&platform_data->mqttClient, &sp);
         ESP_LOGE(TAG, "aws_iot_shadow_init returned error %d, aborting...", rc);
-        return ESP_FAIL;
+        vTaskDelay(1000 / portTICK_PERIOD_MS);
+        // return ESP_FAIL;
     }
 
     ShadowConnectParameters_t scp = ShadowConnectParametersDefault;
