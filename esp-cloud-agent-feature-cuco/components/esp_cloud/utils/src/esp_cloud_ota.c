@@ -146,8 +146,6 @@ static void ota_url_handler(const char *topic, void *payload, size_t payload_len
         printf("version error\r\n");
         return ESP_FAIL;
     }
-    
-    printf("%d-%d-%d-----%d-%d-%d\r\n",R_Main_version,R_feature_version,R_fix_version,C_Main_version,C_feature_version,C_fix_version);
 
     if(!strcmp(ota->ota_version,int_handle->fw_version)){
         ota_report_msg_status_val_to_app(OTA_FINISH_1);
@@ -186,7 +184,7 @@ static void ota_url_handler(const char *topic, void *payload, size_t payload_len
     }
 
     if(update_flag == true){
-        update_flag=false;
+        update_flag=false;  
         len = 0;
         ret = json_obj_get_strlen(&jctx, "url", &len);
         if (ret != ESP_OK) {
@@ -232,7 +230,7 @@ end:
 }
 
 esp_cloud_internal_handle_t *int_app_handle;
-static esp_err_t esp_cloud_ota_check(esp_cloud_handle_t handle, void *priv_data)
+esp_err_t esp_cloud_ota_check(esp_cloud_handle_t handle, void *priv_data)
 {
     char subscribe_topic[100]={0};
     esp_cloud_internal_handle_t *int_handle = (esp_cloud_internal_handle_t *)handle;
@@ -244,18 +242,11 @@ static esp_err_t esp_cloud_ota_check(esp_cloud_handle_t handle, void *priv_data)
     esp_cloud_platform_unsubscribe(int_handle, subscribe_topic);
     esp_err_t err = esp_cloud_platform_subscribe(int_handle, subscribe_topic, ota_url_handler, priv_data);
     if(err != ESP_OK) {
-
-        for(int i=0;i<10;i++){
-            err = esp_cloud_platform_subscribe(int_handle, subscribe_topic, ota_url_handler, priv_data);
-            if(err == ESP_OK) {
-                break;
-            }
-            vTaskDelay(1000/ portTICK_PERIOD_MS);
-        }
-
         ESP_LOGE(TAG, "OTA URL Subscription Error %d", err);
         return ESP_FAIL;
     }
+
+    alexa_and_user_config.ota_topic_sub_states = OTA_TOPIC_SUB_OK;
 
     uint8_t ota_flag = custom_config_storage_get_u8("OTA_F");
     if(ota_flag == CUSTOM_INVALID){

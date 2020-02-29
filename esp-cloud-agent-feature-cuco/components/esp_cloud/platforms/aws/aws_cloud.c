@@ -184,7 +184,7 @@ static void aws_get_new_param_val(esp_cloud_param_val_t *param_val, const jsonSt
 
 static void aws_common_delta_callback(const char* pJsonValueBuffer, uint32_t valueLength, jsonStruct_t *pContext)
 {
-    printf("aws_common_delta_callback------>\r\n");
+    // printf("aws_common_delta_callback------>\r\n");
     if(pContext == NULL) {
         return;
     }
@@ -455,7 +455,7 @@ esp_err_t esp_cloud_platform_register_dynamic_params(esp_cloud_internal_handle_t
     jsonStruct_t *dynamic_params = esp_cloud_mem_calloc(handle->cur_dynamic_params_count, sizeof(jsonStruct_t));
 
     int i;
-    printf("handle->cur_dynamic_params_count:%d--------------\r\n",handle->cur_dynamic_params_count);
+    // printf("handle->cur_dynamic_params_count:%d--------------\r\n",handle->cur_dynamic_params_count);
     for (i = 0; i < handle->cur_dynamic_params_count; i++) {
         dynamic_params[i].cb = aws_common_delta_callback;
         esp_err_t err = esp_cloud_param_map_to_aws(&handle->dynamic_cloud_params[i], &dynamic_params[i]);
@@ -504,10 +504,11 @@ esp_err_t esp_cloud_platform_report_state(esp_cloud_internal_handle_t *handle)
         platform_data->reported_handles[platform_data->reported_count++] =
                 &platform_data->dynamic_params[i];
     }
-    printf("platform_data->reported_count:%d\n",platform_data->reported_count);
+    // printf("platform_data->reported_count:%d\n",platform_data->reported_count);
     shadow_update(handle);  
     while(platform_data->shadowUpdateInProgress) {
         aws_iot_shadow_yield(&platform_data->mqttClient, 1000);
+        vTaskDelay(pdMS_TO_TICKS(500));
     }
     return ESP_OK;
 }
@@ -531,14 +532,16 @@ esp_err_t esp_cloud_platform_wait(esp_cloud_internal_handle_t *handle)
     IoT_Error_t rc = SUCCESS;
     while (1) {
         rc = aws_iot_shadow_yield(&platform_data->mqttClient, 200);
+        vTaskDelay(pdMS_TO_TICKS(500));
         if (NETWORK_ATTEMPTING_RECONNECT == rc || platform_data->shadowUpdateInProgress) {
            aws_iot_shadow_yield(&platform_data->mqttClient, 1000);
+           vTaskDelay(pdMS_TO_TICKS(500));
             // If the client is attempting to reconnect, or already waiting on a shadow update,
             // we will skip the rest of the loop.
             continue;
         }
         break;
-    }
+    }   
     platform_data->desired_count = 0;
     platform_data->reported_count = 0;
     int i;
@@ -555,7 +558,6 @@ esp_err_t esp_cloud_platform_wait(esp_cloud_internal_handle_t *handle)
 
             platform_data->desired_handles[platform_data->desired_count++] =                //lin 2019-9-19
                 &platform_data->dynamic_params[i];
-
         }
         handle->dynamic_cloud_params[i].flags = 0;
     }

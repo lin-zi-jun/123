@@ -766,16 +766,16 @@ static esp_err_t esp_cloud_alexa_sign_in_topic(esp_cloud_handle_t handle, void *
     esp_cloud_platform_unsubscribe(int_handle, app_topic);
     esp_err_t err = esp_cloud_platform_subscribe(int_handle, app_topic, alexa_sign_in_handler, priv_data);
     
-    if(err != ESP_OK) {
-        for(int i=0;i<10;i++){
-            err = esp_cloud_platform_subscribe(int_handle, app_topic, alexa_sign_in_handler, priv_data);
-            ESP_LOGE(TAG, "app_topic Error %d", err);
-            if(err == ESP_OK){
-                break;
-            }
-            vTaskDelay(1000 / portTICK_PERIOD_MS);
-        }
-    }
+    // if(err != ESP_OK) {
+    //     for(int i=0;i<10;i++){
+    //         err = esp_cloud_platform_subscribe(int_handle, app_topic, alexa_sign_in_handler, priv_data);
+    //         ESP_LOGE(TAG, "app_topic Error %d", err);
+    //         if(err == ESP_OK){
+    //             break;
+    //         }
+    //         vTaskDelay(1000 / portTICK_PERIOD_MS);
+    //     }
+    // }
 
     free(app_topic);
     return err;
@@ -790,7 +790,6 @@ extern char ota_ver[10];
 extern char ota_url[255];
 static void esp_cloud_task(void *param)
 {
-    printf("------------------------------------------esp cloud start-----------------------------------------------\r\n");
     if (!param) {
         return;
     }
@@ -803,15 +802,17 @@ static void esp_cloud_task(void *param)
     }/* TODO: Error handling */
 
     esp_cloud_platform_register_dynamic_params(handle); /* TODO: Error handling */
-    esp_cloud_report_device_info(handle);
+    // esp_cloud_report_device_info(handle);
     esp_cloud_report_device_state(handle);
-    esp_cloud_alexa_sign_in_topic(handle,handle);
+    err = esp_cloud_alexa_sign_in_topic(handle,handle);
+    if(err == ESP_OK){
+        alexa_and_user_config.app_topic_sub_states = APP_TOPIC_SUB_OK;
+    }
 
     if(alexa_and_user_config.user_bind_flag == NOTICE_BINDED){
         esp_cloud_report_user_bind_info(handle,bind_status_code);
     }
-    app_aws_done_cb();
-    printf("------------------------------------------esp cloud init ok-----------------------------------------------\r\n");
+    app_aws_done_cb();  
     while (!handle->cloud_stop) {
         esp_cloud_handle_work_queue(handle);
         esp_cloud_platform_wait(handle);
@@ -827,6 +828,17 @@ static void esp_cloud_task(void *param)
             alexa_and_user_config.Wait_for_alexa_in = NOT_LOG_IN;
         }
 
+        if(alexa_and_user_config.app_topic_sub_states == APP_TOPIC_SUB_FAIL){
+            err = esp_cloud_alexa_sign_in_topic(handle,handle);
+            if(err == ESP_OK){
+                alexa_and_user_config.app_topic_sub_states = APP_TOPIC_SUB_OK;
+            }
+        }
+
+        if(alexa_and_user_config.ota_topic_sub_states == OTA_TOPIC_SUB_FAIL){
+            esp_cloud_ota_check(handle,NULL);
+        }
+
         if(ota_update_handle.type == FORCE_OTA_INIT){
 
             ota_update_handle.type = FORCE_OTA_START;
@@ -834,23 +846,12 @@ static void esp_cloud_task(void *param)
             app_publish_ota(ota_url,ota_size,ota_ver);
 
         }else if(ota_update_handle.type == FORCE_OTA_UPDATE){
-            // ota_size = 0;
-            // esp_err_t errr = esp_cloud_update_int_param(esp_cloud_get_handle(),"ota_size",ota_size);
-            // if(errr!=ESP_OK) ESP_LOGE(TAG,"update otasize fail:%d",errr);
-
-            // strncpy(ota_url,"null",sizeof(ota_url)); 
-            // errr = esp_cloud_update_string_param(esp_cloud_get_handle(),"ota_url",ota_url);
-            // if(errr!=ESP_OK) ESP_LOGE(TAG,"update ota_url fail:%d",errr);
-
-            // strncpy(ota_ver,"null",sizeof(ota_ver)); 
-            // errr = esp_cloud_update_string_param(esp_cloud_get_handle(),"ota_version",ota_ver);
-            // if(errr!=ESP_OK) ESP_LOGE(TAG,"update ota_version fail:%d",errr);
-            // ota_update_handle.type = MAX_OTA_CUSTOM;
+    
         }
     }
-    esp_cloud_platform_disconnect(handle);
-    handle->cloud_stop = false;
-    vTaskDelete(NULL);
+    // esp_cloud_platform_disconnect(handle);
+    // handle->cloud_stop = false;
+    // vTaskDelete(NULL);
 }
 
 esp_err_t esp_cloud_queue_work(esp_cloud_handle_t handle, esp_cloud_work_fn_t work_fn, void *priv_data)
