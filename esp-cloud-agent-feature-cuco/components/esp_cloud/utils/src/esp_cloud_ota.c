@@ -149,14 +149,14 @@ static void ota_url_handler(const char *topic, void *payload, size_t payload_len
 
     if(!strcmp(ota->ota_version,int_handle->fw_version)){
         ota_report_msg_status_val_to_app(OTA_FINISH_1);
-        user_bind_report(OTA_UPDATE,APP_TYPE,ota_vertion,true,"have update finish");
+        user_bind_report(OTA_UPDATE,APP_TYPE,ota->ota_version,true,"have update finish");
         printf("have update finish\r\n");
         ota->ota_in_progress = false;
         if(ota_update_handle.type == FORCE_OTA_START){
-            printf("set FORCE_OTA_START:3\r\n");
+            printf("set FORCE_OTA_START\r\n");
             custom_config_storage_set_u8("OTA_F",FORCE_OTA_FINISH);
         }else{
-            printf("set FORCE_OTA_FINISH:1\r\n");
+            printf("set FORCE_OTA_FINISH\r\n");
             custom_config_storage_set_u8("OTA_F",APP_OTA_OK);
         }
         esp_restart();
