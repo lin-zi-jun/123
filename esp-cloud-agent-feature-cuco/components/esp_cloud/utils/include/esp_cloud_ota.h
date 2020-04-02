@@ -29,6 +29,7 @@ typedef enum {
     OTA_STATUS_DELAYED,
 } ota_status_t;
 
+
 /** The OTA Handle to be used by the OTA callback */
 typedef void *esp_cloud_ota_handle_t;
 

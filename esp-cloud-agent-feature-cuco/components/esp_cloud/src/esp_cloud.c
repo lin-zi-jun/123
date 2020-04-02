@@ -788,6 +788,7 @@ extern void test_alexa_mem(void);
 extern int  ota_size;
 extern char ota_ver[10];
 extern char ota_url[255];
+extern prov_config_t  prov_config;
 static void esp_cloud_task(void *param)
 {
     if (!param) {
@@ -812,6 +813,16 @@ static void esp_cloud_task(void *param)
     if(alexa_and_user_config.user_bind_flag == NOTICE_BINDED){
         esp_cloud_report_user_bind_info(handle,bind_status_code);
     }
+
+    if(prov_config.prov_status){
+        prov_config.prov_status = false;
+        if(prov_config.mode_t== AP_PROV){
+
+        }else{
+
+        }
+    }
+
     app_aws_done_cb();  
     while (!handle->cloud_stop) {
         esp_cloud_handle_work_queue(handle);
@@ -842,7 +853,7 @@ static void esp_cloud_task(void *param)
         if(ota_update_handle.type == FORCE_OTA_INIT){
 
             ota_update_handle.type = FORCE_OTA_START;
-            custom_config_storage_set_u8("OTA_F",FORCE_OTA_START);
+            prov_hal.custom_config_storage_set_u8("OTA_F",FORCE_OTA_START);
             app_publish_ota(ota_url,ota_size,ota_ver);
 
         }else if(ota_update_handle.type == FORCE_OTA_UPDATE){
