@@ -33,6 +33,8 @@
 #include "esp_cloud_platform.h"
 #include "aws_custom_utils.h"
 #include "user_auth.h"
+#include "rom/crc.h"
+#include "app_prov_handlers.h"
 // #include "production_test.h"
 #define MAX_LENGTH_OF_UPDATE_JSON_BUFFER 200
 #define AWS_TASK_STACK  12 * 1024
@@ -54,6 +56,7 @@ typedef struct {
     char *client_cert;
     char *client_key;
     char *server_cert;
+    char *ota_cert;
     jsonStruct_t *dynamic_params;
     jsonStruct_t **desired_handles;
     jsonStruct_t **reported_handles;
@@ -358,7 +361,6 @@ esp_err_t esp_cloud_platform_connect(esp_cloud_internal_handle_t *handle)
         rc = aws_iot_shadow_init(&platform_data->mqttClient, &sp);
         ESP_LOGE(TAG, "aws_iot_shadow_init returned error %d, aborting...", rc);
         vTaskDelay(1000 / portTICK_PERIOD_MS);
-        // return ESP_FAIL;
     }
 
     ShadowConnectParameters_t scp = ShadowConnectParametersDefault;
@@ -367,7 +369,6 @@ esp_err_t esp_cloud_platform_connect(esp_cloud_internal_handle_t *handle)
     scp.mqttClientIdLen = (uint16_t) strlen(handle->device_id);
 
     ESP_LOGI(TAG, "Connecting to AWS.....");
-    // int reconnect_attempts = handle->reconnect_attempts ? handle->reconnect_attempts : 1;
     do {
         rc = aws_iot_shadow_connect(&platform_data->mqttClient, &scp);
         if(SUCCESS != rc) {
@@ -378,15 +379,7 @@ esp_err_t esp_cloud_platform_connect(esp_cloud_internal_handle_t *handle)
             alexa_and_user_config.dev_lan_states = IOT_OK;
             ESP_LOGI(TAG, "connecting to %s:%d",sp.pHost, sp.port);
         }
-        // if (handle->reconnect_attempts) {
-        //     reconnect_attempts--;
-        // }
-    // } while(SUCCESS != rc && reconnect_attempts);
     } while(SUCCESS != rc);
-    // if (reconnect_attempts == 0) {
-    //     ESP_LOGE(TAG, "Could not connect to cloud even after %d attempts", handle->reconnect_attempts);
-    //     return ESP_FAIL;
-    // }
     return ESP_OK;
 }
 
@@ -568,6 +561,7 @@ esp_err_t esp_cloud_platform_wait(esp_cloud_internal_handle_t *handle)
     return ESP_OK;
 }
 
+
 esp_err_t esp_cloud_platform_init(esp_cloud_internal_handle_t *handle)
 {
     if (handle->cloud_platform_priv) {
@@ -575,21 +569,47 @@ esp_err_t esp_cloud_platform_init(esp_cloud_internal_handle_t *handle)
     }
     ESP_LOGI(TAG, "Initialising Cloud");
     aws_cloud_platform_data_t *platform_data = esp_cloud_mem_calloc(1, sizeof(aws_cloud_platform_data_t));
+
     if (!platform_data) {
         return ESP_FAIL;
     }
     if ((platform_data->mqtt_host = esp_cloud_storage_get("mqtt_host")) == NULL) {
         goto init_err;
     }
+    int64_t crc = 0;
+    prov_config.dev_config.dev_crc = 0;
+    crc = crc32_le(0, (uint8_t*)platform_data->mqtt_host,strlen(platform_data->mqtt_host));
+    prov_config.dev_config.dev_crc  += crc;
+    ESP_LOGI(TAG, "crc1:%lld--sum:%lld",crc,prov_config.dev_config.dev_crc );
+    
     if ((platform_data->client_cert = esp_cloud_storage_get("client_cert")) == NULL) {
         goto init_err;
     }
+    crc = crc32_le(0, (uint8_t*)platform_data->client_cert,strlen(platform_data->client_cert));
+    prov_config.dev_config.dev_crc  += crc;
+    ESP_LOGI(TAG, "crc2:%lld--sum:%lld",crc,prov_config.dev_config.dev_crc );
+
     if ((platform_data->client_key = esp_cloud_storage_get("client_key")) == NULL) {
         goto init_err;
     }
+    crc = crc32_le(0, (uint8_t*)platform_data->client_key,strlen(platform_data->client_key));
+    prov_config.dev_config.dev_crc  += crc;
+    ESP_LOGI(TAG, "crc3:%lld--sum:%lld",crc,prov_config.dev_config.dev_crc );
+
     if ((platform_data->server_cert = esp_cloud_storage_get("server_cert")) == NULL) {
         goto init_err;
     }
+    crc = crc32_le(0, (uint8_t*)platform_data->server_cert,strlen(platform_data->server_cert));
+    prov_config.dev_config.dev_crc  += crc;
+    ESP_LOGI(TAG, "crc4:%lld--sum:%lld",crc,prov_config.dev_config.dev_crc );
+
+    if ((platform_data->ota_cert = esp_cloud_storage_get("ota_server_cert")) == NULL) {
+        goto init_err;
+    }
+    crc = crc32_le(0, (uint8_t*)platform_data->ota_cert,strlen(platform_data->ota_cert));
+    prov_config.dev_config.dev_crc  += crc;
+    ESP_LOGI(TAG, "crc5:%lld--sum:%lld",crc,prov_config.dev_config.dev_crc );
+    
     handle->cloud_platform_priv = platform_data;
     return ESP_OK;
 
@@ -605,6 +625,10 @@ init_err:
     }
     if (platform_data->mqtt_host) {
         free(platform_data->mqtt_host);
+    }
+
+     if (platform_data->ota_cert) {
+        free(platform_data->ota_cert);
     }
     free(platform_data);
     return ESP_FAIL;

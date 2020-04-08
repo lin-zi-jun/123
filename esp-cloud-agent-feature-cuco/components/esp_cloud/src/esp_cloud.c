@@ -62,17 +62,37 @@ esp_err_t esp_cloud_init(esp_cloud_config_t *config, esp_cloud_handle_t *handle)
         return ESP_FAIL;
     }
     g_cloud_handle = esp_cloud_mem_calloc(1, sizeof(esp_cloud_internal_handle_t));
-    g_cloud_handle->device_id = esp_cloud_storage_get("device_id");
-    if (!g_cloud_handle->device_id) {
-        free(g_cloud_handle);
-        g_cloud_handle = NULL;
+    prov_config.dev_config.device_id  = esp_cloud_storage_get("device_id");
+    if (!prov_config.dev_config.device_id) {
+         ESP_LOGE(TAG, "Device UUID get fail");
         return ESP_FAIL;
     }
-    ESP_LOGI(TAG, "Device UUID %s", g_cloud_handle->device_id);
+    ESP_LOGI(TAG, "Device UUID %s", prov_config.dev_config.device_id);
+  
+    prov_config.dev_config.device_token  = esp_cloud_storage_get("device_token");
+    if (!prov_config.dev_config.device_token) {
+         ESP_LOGE(TAG, "device_token get fail");
+        return ESP_FAIL;
+    }
+    ESP_LOGI(TAG, "device_token %s", prov_config.dev_config.device_token);
+
+    prov_config.dev_config.country_code= esp_cloud_storage_get("country_code");
+    if (!prov_config.dev_config.country_code) {
+         ESP_LOGE(TAG, "country_code get fail");
+        return ESP_FAIL;
+    }
+    ESP_LOGI(TAG, "country_code %s", prov_config.dev_config.country_code);
+
+
+    prov_config.dev_config.pkind_code = esp_cloud_storage_get("pkind_code");
+    if (!prov_config.dev_config.pkind_code) {
+         ESP_LOGE(TAG, "pkind_code get fail");
+        return ESP_FAIL;
+    }
+    ESP_LOGI(TAG, "pkind_code %s", prov_config.dev_config.pkind_code);
 
     g_cloud_handle->work_queue = xQueueCreate(ESP_CLOUD_TASK_QUEUE_SIZE, sizeof(esp_cloud_work_queue_entry_t));
     if (!g_cloud_handle->work_queue) {
-        free(g_cloud_handle->device_id);
         free(g_cloud_handle);
         g_cloud_handle = NULL;
         ESP_LOGE(TAG, "ESP Cloud Task Queue Creation Failed");
@@ -81,7 +101,6 @@ esp_err_t esp_cloud_init(esp_cloud_config_t *config, esp_cloud_handle_t *handle)
 
     if (esp_cloud_platform_init(g_cloud_handle) != ESP_OK) {
         vQueueDelete(g_cloud_handle->work_queue);
-        free(g_cloud_handle->device_id);
         free(g_cloud_handle);
         g_cloud_handle = NULL;
         return ESP_FAIL;
@@ -788,7 +807,6 @@ extern void test_alexa_mem(void);
 extern int  ota_size;
 extern char ota_ver[10];
 extern char ota_url[255];
-extern prov_config_t  prov_config;
 static void esp_cloud_task(void *param)
 {
     if (!param) {
