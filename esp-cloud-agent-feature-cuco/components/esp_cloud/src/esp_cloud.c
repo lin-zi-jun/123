@@ -61,7 +61,16 @@ esp_err_t esp_cloud_init(esp_cloud_config_t *config, esp_cloud_handle_t *handle)
     if (esp_cloud_storage_init() != ESP_OK) {
         return ESP_FAIL;
     }
+
     g_cloud_handle = esp_cloud_mem_calloc(1, sizeof(esp_cloud_internal_handle_t));
+    g_cloud_handle->device_id = esp_cloud_storage_get("device_id");
+    if (!g_cloud_handle->device_id) {
+        free(g_cloud_handle);
+        g_cloud_handle = NULL;
+        return ESP_FAIL;
+    }
+    ESP_LOGI(TAG, "Device UUID %s", g_cloud_handle->device_id);
+
     prov_config.dev_config.device_id  = esp_cloud_storage_get("device_id");
     if (!prov_config.dev_config.device_id) {
          ESP_LOGE(TAG, "Device UUID get fail");
