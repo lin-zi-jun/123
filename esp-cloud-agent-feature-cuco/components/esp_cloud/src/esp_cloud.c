@@ -34,6 +34,7 @@
 #include <va_mem_utils.h>
 #include "production_test.h"
 #include "esp_cloud_ota.h"
+#include <esp_wifi.h>
 static const char *TAG = "esp_cloud";
 
 #define INFO_TOPIC_SUFFIX       "device/info"
@@ -844,10 +845,17 @@ static void esp_cloud_task(void *param)
     if(prov_config.prov_status){
         prov_config.prov_status = false;
         if(prov_config.mode_t== AP_PROV){
-
+            ESP_LOGI(TAG, "结束AP配网");
+            prov_hal.ap_prov_stop();
         }else{
-
+            ESP_LOGI(TAG, "结束蓝牙配网");
+            prov_hal.bt_prov_stop();
         }
+        prov_hal.custom_config_storage_set_u8("prov_reset",RESET_INIT);
+        prov_config.prov_reset_statue = RESET_INIT;
+        prov_config.provisioned=true;
+        esp_wifi_set_storage(WIFI_STORAGE_FLASH);
+        ESP_LOGI(TAG,"保存SSID PASSWORD");
     }
 
     app_aws_done_cb();  
