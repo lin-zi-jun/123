@@ -35,6 +35,7 @@
 #include "production_test.h"
 #include "esp_cloud_ota.h"
 #include <esp_wifi.h>
+#include "va_led.h"
 static const char *TAG = "esp_cloud";
 
 #define INFO_TOPIC_SUFFIX       "device/info"
@@ -790,21 +791,9 @@ static esp_err_t esp_cloud_alexa_sign_in_topic(esp_cloud_handle_t handle, void *
         return ESP_FAIL;
     }
 
-    ESP_LOGI(TAG, "Subscribing to: %s", app_topic);
     /* First unsubscribing, in case there is a stale subscription */
     esp_cloud_platform_unsubscribe(int_handle, app_topic);
     esp_err_t err = esp_cloud_platform_subscribe(int_handle, app_topic, alexa_sign_in_handler, priv_data);
-    
-    // if(err != ESP_OK) {
-    //     for(int i=0;i<10;i++){
-    //         err = esp_cloud_platform_subscribe(int_handle, app_topic, alexa_sign_in_handler, priv_data);
-    //         ESP_LOGE(TAG, "app_topic Error %d", err);
-    //         if(err == ESP_OK){
-    //             break;
-    //         }
-    //         vTaskDelay(1000 / portTICK_PERIOD_MS);
-    //     }
-    // }
 
     free(app_topic);
     return err;
@@ -825,14 +814,12 @@ static void esp_cloud_task(void *param)
     esp_cloud_internal_handle_t *handle = (esp_cloud_internal_handle_t *) param;
 
     esp_err_t err = esp_cloud_platform_connect(handle);
-    if (err != ESP_OK) {
-        ESP_LOGE(TAG, "esp_cloud_platform_connect() returned %d. Aborting", err);
-        vTaskDelete(NULL);
-    }/* TODO: Error handling */
+    while (err != ESP_OK) {
+        ESP_LOGE(TAG, "esp_cloud_platform_connect() err %d. Aborting", err);
+        err = esp_cloud_platform_connect(handle);
+    }
 
-    esp_cloud_platform_register_dynamic_params(handle); /* TODO: Error handling */
-    // esp_cloud_report_device_info(handle);
-    esp_cloud_report_device_state(handle);
+    esp_cloud_platform_register_dynamic_params(handle);
     err = esp_cloud_alexa_sign_in_topic(handle,handle);
     if(err == ESP_OK){
         alexa_and_user_config.app_topic_sub_states = APP_TOPIC_SUB_OK;
@@ -855,6 +842,7 @@ static void esp_cloud_task(void *param)
         prov_config.prov_reset_statue = RESET_INIT;
         prov_config.provisioned=true;
         esp_wifi_set_storage(WIFI_STORAGE_FLASH);
+        va_led_set(VA_CAN_START);
         ESP_LOGI(TAG,"保存SSID PASSWORD");
     }
 

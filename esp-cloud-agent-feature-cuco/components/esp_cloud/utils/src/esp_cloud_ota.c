@@ -237,7 +237,6 @@ esp_err_t esp_cloud_ota_check(esp_cloud_handle_t handle, void *priv_data)
     int_app_handle = (esp_cloud_internal_handle_t *)handle;
     snprintf(subscribe_topic, sizeof(subscribe_topic),"%s/%s", int_handle->device_id, OTAURL_TOPIC_SUFFIX);
 
-    ESP_LOGI(TAG, "Subscribing to: %s", subscribe_topic);
     /* First unsubscribing, in case there is a stale subscription */
     esp_cloud_platform_unsubscribe(int_handle, subscribe_topic);
     esp_err_t err = esp_cloud_platform_subscribe(int_handle, subscribe_topic, ota_url_handler, priv_data);
@@ -276,21 +275,6 @@ esp_err_t esp_cloud_ota_check(esp_cloud_handle_t handle, void *priv_data)
         printf("flag FORCE_OTA_FINISH:%d\r\n",FORCE_OTA_START);
     }
 
-
-    char publish_payload[150];
-    json_str_t jstr;
-    json_str_start(&jstr, publish_payload, sizeof(publish_payload), NULL, NULL);
-    json_start_object(&jstr);
-    json_obj_set_string(&jstr, "device_id", int_handle->device_id);
-    json_obj_set_string(&jstr, "fw_version", int_handle->fw_version);
-    json_end_object(&jstr);
-    json_str_end(&jstr);
-    char publish_topic[100]={0};
-    snprintf(publish_topic, sizeof(publish_topic), "%s/%s", int_handle->device_id, OTAFETCH_TOPIC_SUFFIX);
-    err = esp_cloud_platform_publish(int_handle, publish_topic, publish_payload);
-    if (err != ESP_OK) {                                                            
-        ESP_LOGE(TAG, "OTA Fetch Publish Error %d", err);
-    }
     return err;                                                                                                                                                             
 }
 
