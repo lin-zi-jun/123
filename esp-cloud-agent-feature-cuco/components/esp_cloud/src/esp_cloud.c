@@ -823,23 +823,6 @@ static void esp_cloud_task(void *param)
         alexa_and_user_config.app_topic_sub_states = APP_TOPIC_SUB_OK;
     }
 
-    if(prov_config.prov_status){
-        prov_config.prov_status = false;
-        if(prov_config.mode_t== AP_PROV){
-            ESP_LOGI(TAG, "结束AP配网");
-            prov_hal.ap_prov_stop();
-        }else{
-            ESP_LOGI(TAG, "结束蓝牙配网");
-            prov_hal.bt_prov_stop();
-        }
-        prov_hal.custom_config_storage_set_u8("prov_reset",RESET_INIT);
-        prov_config.prov_reset_statue = RESET_INIT;
-        prov_config.provisioned=true;
-        esp_wifi_set_storage(WIFI_STORAGE_FLASH);
-        va_led_set(VA_CAN_START);
-        ESP_LOGI(TAG,"保存SSID PASSWORD");
-    }
-
     bit_hal.app_aws_done_cb();  
     while (!handle->cloud_stop) {
         esp_cloud_handle_work_queue(handle);
