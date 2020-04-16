@@ -529,8 +529,6 @@ esp_err_t esp_cloud_platform_wait(esp_cloud_internal_handle_t *handle)
         if (NETWORK_ATTEMPTING_RECONNECT == rc || platform_data->shadowUpdateInProgress) {
            aws_iot_shadow_yield(&platform_data->mqttClient, 1000);
            vTaskDelay(pdMS_TO_TICKS(500));
-            // If the client is attempting to reconnect, or already waiting on a shadow update,
-            // we will skip the rest of the loop.
             continue;
         }
         break;
@@ -580,35 +578,30 @@ esp_err_t esp_cloud_platform_init(esp_cloud_internal_handle_t *handle)
     prov_config.dev_config.dev_crc = 0;
     crc = crc32_le(0, (uint8_t*)platform_data->mqtt_host,strlen(platform_data->mqtt_host));
     prov_config.dev_config.dev_crc  += crc;
-    ESP_LOGI(TAG, "crc1:%lld--sum:%lld",crc,prov_config.dev_config.dev_crc );
     
     if ((platform_data->client_cert = esp_cloud_storage_get("client_cert")) == NULL) {
         goto init_err;
     }
     crc = crc32_le(0, (uint8_t*)platform_data->client_cert,strlen(platform_data->client_cert));
     prov_config.dev_config.dev_crc  += crc;
-    ESP_LOGI(TAG, "crc2:%lld--sum:%lld",crc,prov_config.dev_config.dev_crc );
 
     if ((platform_data->client_key = esp_cloud_storage_get("client_key")) == NULL) {
         goto init_err;
     }
     crc = crc32_le(0, (uint8_t*)platform_data->client_key,strlen(platform_data->client_key));
     prov_config.dev_config.dev_crc  += crc;
-    ESP_LOGI(TAG, "crc3:%lld--sum:%lld",crc,prov_config.dev_config.dev_crc );
 
     if ((platform_data->server_cert = esp_cloud_storage_get("server_cert")) == NULL) {
         goto init_err;
     }
     crc = crc32_le(0, (uint8_t*)platform_data->server_cert,strlen(platform_data->server_cert));
     prov_config.dev_config.dev_crc  += crc;
-    ESP_LOGI(TAG, "crc4:%lld--sum:%lld",crc,prov_config.dev_config.dev_crc );
 
     if ((platform_data->ota_cert = esp_cloud_storage_get("ota_server_cert")) == NULL) {
         goto init_err;
     }
     crc = crc32_le(0, (uint8_t*)platform_data->ota_cert,strlen(platform_data->ota_cert));
     prov_config.dev_config.dev_crc  += crc;
-    ESP_LOGI(TAG, "crc5:%lld--sum:%lld",crc,prov_config.dev_config.dev_crc );
     
     handle->cloud_platform_priv = platform_data;
     return ESP_OK;

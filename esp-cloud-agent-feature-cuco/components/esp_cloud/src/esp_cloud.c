@@ -36,6 +36,7 @@
 #include "esp_cloud_ota.h"
 #include <esp_wifi.h>
 #include "va_led.h"
+#include "event_bit.h"
 static const char *TAG = "esp_cloud";
 
 #define INFO_TOPIC_SUFFIX       "device/info"
@@ -51,9 +52,7 @@ static const char *TAG = "esp_cloud";
 
 
 
-extern int bind_status_code;    
 esp_cloud_internal_handle_t *g_cloud_handle;
-extern void app_aws_done_cb();
 /* Initialize the Cloud by setting proper fields in the handle and allocating memory */
 esp_err_t esp_cloud_init(esp_cloud_config_t *config, esp_cloud_handle_t *handle)
 {
@@ -78,7 +77,6 @@ esp_err_t esp_cloud_init(esp_cloud_config_t *config, esp_cloud_handle_t *handle)
          ESP_LOGE(TAG, "Device UUID get fail");
         return ESP_FAIL;
     }
-    ESP_LOGI(TAG, "Device UUID %s", prov_config.dev_config.device_id);
   
     prov_config.dev_config.device_token  = esp_cloud_storage_get("device_token");
     if (!prov_config.dev_config.device_token) {
@@ -825,10 +823,6 @@ static void esp_cloud_task(void *param)
         alexa_and_user_config.app_topic_sub_states = APP_TOPIC_SUB_OK;
     }
 
-    if(alexa_and_user_config.user_bind_flag == NOTICE_BINDED){
-        esp_cloud_report_user_bind_info(handle,bind_status_code);
-    }
-
     if(prov_config.prov_status){
         prov_config.prov_status = false;
         if(prov_config.mode_t== AP_PROV){
@@ -846,7 +840,7 @@ static void esp_cloud_task(void *param)
         ESP_LOGI(TAG,"保存SSID PASSWORD");
     }
 
-    app_aws_done_cb();  
+    bit_hal.app_aws_done_cb();  
     while (!handle->cloud_stop) {
         esp_cloud_handle_work_queue(handle);
         esp_cloud_platform_wait(handle);
@@ -863,6 +857,7 @@ static void esp_cloud_task(void *param)
         }
 
         if(alexa_and_user_config.app_topic_sub_states == APP_TOPIC_SUB_FAIL){
+            esp_cloud_platform_connect(handle);
             err = esp_cloud_alexa_sign_in_topic(handle,handle);
             if(err == ESP_OK){
                 alexa_and_user_config.app_topic_sub_states = APP_TOPIC_SUB_OK;
@@ -870,6 +865,7 @@ static void esp_cloud_task(void *param)
         }
 
         if(alexa_and_user_config.ota_topic_sub_states == OTA_TOPIC_SUB_FAIL){
+            esp_cloud_platform_connect(handle);
             esp_cloud_ota_check(handle,NULL);
         }
 
@@ -883,9 +879,6 @@ static void esp_cloud_task(void *param)
     
         }
     }
-    // esp_cloud_platform_disconnect(handle);
-    // handle->cloud_stop = false;
-    // vTaskDelete(NULL);
 }
 
 esp_err_t esp_cloud_queue_work(esp_cloud_handle_t handle, esp_cloud_work_fn_t work_fn, void *priv_data)
@@ -918,8 +911,6 @@ esp_err_t esp_cloud_start(esp_cloud_handle_t handle)
         esp_cloud_time_sync(); 
         esp_cloud_time_sync_uninit();
     }
-
-    ESP_LOGI(TAG, "Starting Cloud Agent");
 
     if (xTaskCreate(&esp_cloud_task, "esp_cloud_task", ESP_CLOUD_TASK_STACK, int_handle, 5, NULL) != pdPASS) {
         ESP_LOGE(TAG, "Couldn't create cloud task");
