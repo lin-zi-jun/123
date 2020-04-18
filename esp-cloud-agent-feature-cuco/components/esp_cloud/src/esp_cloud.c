@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 #include <string.h>
+#include <stdio.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <freertos/queue.h>
@@ -471,7 +472,11 @@ esp_err_t ota_report_progress_val_info(esp_cloud_internal_handle_t *handle,int p
         return ESP_FAIL;
     }
     esp_err_t err = esp_cloud_platform_publish(handle, app_topic,publish_payload);
-    free(app_topic);
+    if(app_topic){
+        free(app_topic);
+        app_topic = NULL;
+    }
+   
     return err;
 }
 
@@ -500,7 +505,10 @@ esp_err_t ota_report_progress_val_msg(esp_cloud_internal_handle_t *handle,int re
         return ESP_FAIL;
     }
     esp_err_t err = esp_cloud_platform_publish(handle, app_topic,publish_payload);
-    free(app_topic);
+    if(app_topic){
+        free(app_topic);
+        app_topic = NULL;
+    }
     return err;
 }
 
@@ -935,4 +943,9 @@ void ota_report_progress_val_to_app(int progress_val){
 
 void ota_report_msg_status_val_to_app(int result){
     ota_report_progress_val_msg(int_ota_report_handle,result);
+}
+
+
+void esp_cloud_platform_deinit_cb(void){
+    esp_cloud_platform_deinit(g_cloud_handle);
 }

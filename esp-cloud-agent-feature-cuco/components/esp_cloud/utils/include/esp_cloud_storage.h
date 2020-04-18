@@ -38,3 +38,4 @@ esp_err_t esp_cloud_storage_init();
  * @return NULL on error
  */
 char *esp_cloud_storage_get(const char *key);
+char esp_cloud_storage_set(const char *key,const char *str);

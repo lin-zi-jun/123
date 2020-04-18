@@ -14,7 +14,8 @@
 #include <esp_log.h>
 #include <nvs_flash.h>
 #include <nvs.h>
-
+#include <string.h>
+#include <stdio.h>
 #include "esp_cloud_mem.h"
 
 static const char *TAG = "esp_cloud_storage";
@@ -56,3 +57,26 @@ char *esp_cloud_storage_get(const char *key)
     nvs_close(handle);
     return value;
 }
+
+char esp_cloud_storage_set(const char *key,const char *str)
+{
+    nvs_handle handle;
+    esp_err_t err;
+    if ((err = nvs_open_from_partition(CLOUD_PARTITION_NAME, CLOUD_NAMESPACE,
+                                NVS_READWRITE, &handle)) != ESP_OK) {
+        ESP_LOGE(TAG, "NVS open failed with error %d", err);
+        return ESP_FAIL;
+    }
+    size_t required_size = strlen(str);
+    if ((err = nvs_set_blob(handle,key,str,required_size)) != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to write key %s with error %d size %d", key, err, required_size);
+        nvs_close(handle);
+        return ESP_FAIL;
+    }
+    nvs_close(handle);
+
+    return ESP_OK;
+}
+
+
+

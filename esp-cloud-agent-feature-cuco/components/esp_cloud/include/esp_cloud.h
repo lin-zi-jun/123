@@ -386,3 +386,4 @@ enum{
 };
 
 void ota_report_msg_status_val_to_app(int result);
+void esp_cloud_platform_deinit_cb(void);

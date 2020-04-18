@@ -448,7 +448,6 @@ esp_err_t esp_cloud_platform_register_dynamic_params(esp_cloud_internal_handle_t
     jsonStruct_t *dynamic_params = esp_cloud_mem_calloc(handle->cur_dynamic_params_count, sizeof(jsonStruct_t));
 
     int i;
-    // printf("handle->cur_dynamic_params_count:%d--------------\r\n",handle->cur_dynamic_params_count);
     for (i = 0; i < handle->cur_dynamic_params_count; i++) {
         dynamic_params[i].cb = aws_common_delta_callback;
         esp_err_t err = esp_cloud_param_map_to_aws(&handle->dynamic_cloud_params[i], &dynamic_params[i]);
@@ -497,7 +496,6 @@ esp_err_t esp_cloud_platform_report_state(esp_cloud_internal_handle_t *handle)
         platform_data->reported_handles[platform_data->reported_count++] =
                 &platform_data->dynamic_params[i];
     }
-    // printf("platform_data->reported_count:%d\n",platform_data->reported_count);
     shadow_update(handle);  
     while(platform_data->shadowUpdateInProgress) {
         aws_iot_shadow_yield(&platform_data->mqttClient, 1000);
@@ -571,9 +569,10 @@ esp_err_t esp_cloud_platform_init(esp_cloud_internal_handle_t *handle)
     if (!platform_data) {
         return ESP_FAIL;
     }
-    if ((platform_data->mqtt_host = esp_cloud_storage_get("mqtt_host")) == NULL) {
+    if ((platform_data->mqtt_host = esp_cloud_storage_get("mqtt_host")) == NULL) {   
         goto init_err;
     }
+    ESP_LOGI(TAG, "platform_data->mqtt_host:%s",platform_data->mqtt_host);
     int64_t crc = 0;
     prov_config.dev_config.dev_crc = 0;
     crc = crc32_le(0, (uint8_t*)platform_data->mqtt_host,strlen(platform_data->mqtt_host));
@@ -626,3 +625,78 @@ init_err:
     free(platform_data);
     return ESP_FAIL;
 }
+
+
+esp_err_t esp_cloud_platform_deinit(esp_cloud_internal_handle_t *handle)
+{
+    if (handle->cloud_platform_priv) {
+        free(handle->cloud_platform_priv);
+    }
+    ESP_LOGI(TAG, "Initialising Cloud again");
+    aws_cloud_platform_data_t *platform_data = esp_cloud_mem_calloc(1, sizeof(aws_cloud_platform_data_t));
+
+    if (platform_data->server_cert) {
+        free(platform_data->server_cert);
+    }
+    if (platform_data->client_key) {
+        free(platform_data->client_key);
+    }
+    if (platform_data->client_cert) {
+        free(platform_data->client_cert);
+    }
+    if (platform_data->mqtt_host) {
+        free(platform_data->mqtt_host);
+    }
+
+     if (platform_data->ota_cert) {
+        free(platform_data->ota_cert);
+    }
+
+   
+    if (!platform_data) {
+        return ESP_FAIL;
+    }
+    if ((platform_data->mqtt_host = esp_cloud_storage_get("mqtt_host")) == NULL) {
+        goto init_err;
+    }
+    ESP_LOGI(TAG, "replace platform_data->mqtt_host:%s",platform_data->mqtt_host);
+    if ((platform_data->client_cert = esp_cloud_storage_get("client_cert")) == NULL) {
+        goto init_err;
+    }
+
+    if ((platform_data->client_key = esp_cloud_storage_get("client_key")) == NULL) {
+        goto init_err;
+    }
+
+    if ((platform_data->server_cert = esp_cloud_storage_get("server_cert")) == NULL) {
+        goto init_err;
+    }
+
+    if ((platform_data->ota_cert = esp_cloud_storage_get("ota_server_cert")) == NULL) {
+        goto init_err;
+    }
+    
+    handle->cloud_platform_priv = platform_data;
+    return ESP_OK;
+
+init_err:
+    if (platform_data->server_cert) {
+        free(platform_data->server_cert);
+    }
+    if (platform_data->client_key) {
+        free(platform_data->client_key);
+    }
+    if (platform_data->client_cert) {
+        free(platform_data->client_cert);
+    }
+    if (platform_data->mqtt_host) {
+        free(platform_data->mqtt_host);
+    }
+
+     if (platform_data->ota_cert) {
+        free(platform_data->ota_cert);
+    }
+    free(platform_data);
+    return ESP_FAIL;
+}
+
