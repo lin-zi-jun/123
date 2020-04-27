@@ -109,7 +109,7 @@ static esp_err_t ota_url_handler(const char *topic, void *payload, size_t payloa
         return ESP_FAIL;
     }
     ota->ota_in_progress = true;
-    ESP_LOGI(TAG, "Upgrade Handler got:%.*s\n", (int) payload_len, (char *)payload);
+    ESP_LOGI(TAG, "Upgrade Handler len:%d got:%.*s\n", (int) payload_len,(int) payload_len, (char *)payload);
 
     jparse_ctx_t jctx;
     char *url = NULL;
@@ -201,6 +201,8 @@ static esp_err_t ota_url_handler(const char *topic, void *payload, size_t payloa
 
         json_parse_end(&jctx);
 
+        user_ota.ota_status = OTA_ING;
+
         esp_err_t err = ota->ota_cb((esp_cloud_ota_handle_t)ota, url, ota->ota_priv);
         if (err == ESP_OK) {
             user_ota.ota_status = OTA_FINISH;
@@ -255,7 +257,7 @@ esp_err_t esp_cloud_ota_check(esp_cloud_handle_t handle, void *priv_data)
 }
 
 esp_err_t app_publish_ota(char *url,int file_size,char * ota_version){
-    char publish_payload[200];
+    char publish_payload[600];
     json_str_t jstr;
     json_str_start(&jstr, publish_payload, sizeof(publish_payload), NULL, NULL);
     json_start_object(&jstr);
