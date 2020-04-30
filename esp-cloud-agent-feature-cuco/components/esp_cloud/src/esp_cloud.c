@@ -662,14 +662,14 @@ static void alexa_sign_in_handler(const char *topic, void *payload, size_t paylo
             printf("cmd:%s-----------\r\n",p_cmd);
 
             if(!strcmp(p_cmd,"alexa_unbind_req")){
-                alexa_and_user_config.Wait_for_alexa_out = NOT_LOG_OUT;
+                dev_config.Wait_for_alexa_out = NOT_LOG_OUT;
                 alexa_auth_delegate_signout();
                 printf("alexa_auth_delegate_signout\r\n");
                 return;
             }else if(!strcmp(p_cmd,"alexa_req")){
 
                 printf("recive alexa_bind_req\r\n");
-                if(alexa_and_user_config.Wait_for_alexa_in == NOT_LOG_IN){
+                if(dev_config.Wait_for_alexa_in == NOT_LOG_IN){
                     printf("Wait_for_alexa_in\r\n");
                     ret = json_obj_get_object(&jctx,"data");
                     if (ret != 0) {
@@ -784,9 +784,11 @@ static void esp_cloud_task(void *param)
     }
 
     esp_cloud_platform_register_dynamic_params(handle);
+    esp_cloud_platform_report_state(handle);
+
     err = esp_cloud_alexa_sign_in_topic(handle,handle);
     if(err == ESP_OK){
-        alexa_and_user_config.app_topic_sub_states = APP_TOPIC_SUB_OK;
+        dev_config.app_topic_sub_states = APP_TOPIC_SUB_OK;
     }
 
     bit_hal.app_aws_done_cb();  
@@ -794,29 +796,29 @@ static void esp_cloud_task(void *param)
         esp_cloud_handle_work_queue(handle);
         esp_cloud_platform_wait(handle);
 
-        if(alexa_and_user_config.Wait_for_alexa_in == LOGED_IN){
+        if(dev_config.Wait_for_alexa_in == LOGED_IN){
             esp_cloud_update_bool_param(esp_cloud_get_handle(), "alexa", true);
-            alexa_and_user_config.Wait_for_alexa_in = LOGED_IN_NOTIVE;
+            dev_config.Wait_for_alexa_in = LOGED_IN_NOTIVE;
         }
 
-        if(alexa_and_user_config.Wait_for_alexa_out == NOT_LOG_OUT){
+        if(dev_config.Wait_for_alexa_out == NOT_LOG_OUT){
             esp_cloud_update_bool_param(esp_cloud_get_handle(), "alexa", false);
-            alexa_and_user_config.Wait_for_alexa_out = LOGED_OUT;
-            alexa_and_user_config.Wait_for_alexa_in = NOT_LOG_IN;
+            dev_config.Wait_for_alexa_out = LOGED_OUT;
+            dev_config.Wait_for_alexa_in = NOT_LOG_IN;
         }
 
-        if(alexa_and_user_config.app_topic_sub_states == APP_TOPIC_SUB_FAIL){
+        if(dev_config.app_topic_sub_states == APP_TOPIC_SUB_FAIL){
             esp_cloud_platform_connect(handle);
             err = esp_cloud_alexa_sign_in_topic(handle,handle);
             if(err == ESP_OK){
-                alexa_and_user_config.app_topic_sub_states = APP_TOPIC_SUB_OK;
+                dev_config.app_topic_sub_states = APP_TOPIC_SUB_OK;
             }
         }
 
-        if(alexa_and_user_config.ota_topic_sub_states == OTA_TOPIC_SUB_FAIL){
-            esp_cloud_platform_connect(handle);
-            esp_cloud_ota_check(handle,NULL);
-        }
+        // if(dev_config.ota_topic_sub_states == OTA_TOPIC_SUB_FAIL){
+        //     esp_cloud_platform_connect(handle);
+        //     esp_cloud_ota_check(handle,NULL);
+        // }
 
         if(user_ota.ota_status == OTA_INIT){
             user_ota.ota_status = OTA_START;

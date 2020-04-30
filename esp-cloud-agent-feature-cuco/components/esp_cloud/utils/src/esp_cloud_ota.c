@@ -92,188 +92,187 @@ esp_err_t esp_cloud_report_ota_status(esp_cloud_ota_handle_t ota_handle, ota_sta
     return ESP_OK;
 }
 
-static esp_err_t ota_url_handler(const char *topic, void *payload, size_t payload_len, void *priv_data)
-{
-    bool update_flag=false;
-    int R_Main_version = 0, R_feature_version = 0,R_fix_version = 0;
-    int C_Main_version = 0,C_feature_version = 0,C_fix_version = 0;
-    if (!priv_data) {
-        return ESP_FAIL;
-    }
-    esp_cloud_ota_handle_t ota_handle = priv_data;
-    esp_cloud_ota_t *ota = (esp_cloud_ota_t *)ota_handle;
-                         
-    esp_cloud_internal_handle_t *int_handle = (esp_cloud_internal_handle_t *)ota->handle;
+// static esp_err_t ota_url_handler(const char *topic, void *payload, size_t payload_len, void *priv_data)
+// {
+//     bool update_flag=false;
+//     int R_Main_version = 0, R_feature_version = 0,R_fix_version = 0;
+//     int C_Main_version = 0,C_feature_version = 0,C_fix_version = 0;
+//     if (!priv_data) {
+//         return ESP_FAIL;
+//     }
+//     esp_cloud_ota_handle_t ota_handle = priv_data;
+//     esp_cloud_ota_t *ota = (esp_cloud_ota_t *)ota_handle;                 
+//     esp_cloud_internal_handle_t *int_handle = (esp_cloud_internal_handle_t *)ota->handle;
 
-    if (ota->ota_in_progress) {
-        return ESP_FAIL;
-    }
-    ota->ota_in_progress = true;
-    ESP_LOGI(TAG, "Upgrade Handler len:%d got:%.*s\n", (int) payload_len,(int) payload_len, (char *)payload);
+//     if (ota->ota_in_progress) {
+//         return ESP_FAIL;
+//     }
+//     ota->ota_in_progress = true;
+//     ESP_LOGI(TAG, "Upgrade Handler len:%d got:%.*s\n", (int) payload_len,(int) payload_len, (char *)payload);
 
-    jparse_ctx_t jctx;
-    char *url = NULL;
-    int ret = json_parse_start(&jctx, (char *)payload, (int) payload_len);
-    if (ret != 0) {
-        user_ota.ota_status = JCTX_ERR;
-        ota->ota_in_progress = false;
-        return ESP_FAIL;
-    }
+//     jparse_ctx_t jctx;
+//     char *url = NULL;
+//     int ret = json_parse_start(&jctx, (char *)payload, (int) payload_len);
+//     if (ret != 0) {
+//         user_ota.ota_status = JCTX_ERR;
+//         ota->ota_in_progress = false;
+//         return ESP_FAIL;
+//     }
 
-    int len = 0;
-    ret = json_obj_get_strlen(&jctx, "ota_version", &len);
-    if (ret != ESP_OK) {
-        user_ota.ota_status = VERSION_ERR;
-        return ESP_FAIL;
-    }
-    len++; /* Increment for NULL character */
-    ota->ota_version = esp_cloud_mem_calloc(1, len);
+//     int len = 0;
+//     ret = json_obj_get_strlen(&jctx, "ota_version", &len);
+//     if (ret != ESP_OK) {
+//         user_ota.ota_status = VERSION_ERR;
+//         return ESP_FAIL;
+//     }
+//     len++; /* Increment for NULL character */
+//     ota->ota_version = esp_cloud_mem_calloc(1, len);
 
-    ret = json_obj_get_string(&jctx, "ota_version", ota->ota_version,len);
-     if (ret != ESP_OK) {
-         user_ota.ota_status = VERSION_ERR;
-        return ESP_FAIL;
-    }
-    // ota_report_progress_val_to_app(0);
-    printf("remote:%s---cur:%s\r\n",ota->ota_version,int_handle->fw_version);
-    int n = sscanf(ota->ota_version, "%d.%d.%d",&R_Main_version,&R_feature_version,&R_fix_version);
-    if(n!=3){
-        user_ota.ota_status = VERSION_ERR;
-        printf("version error\r\n");
-        return ESP_FAIL;
-    }
-    n = sscanf(int_handle->fw_version, "%d.%d.%d",&C_Main_version,&C_feature_version,&C_fix_version);
-    if(n!=3){
-        user_ota.ota_status = VERSION_ERR;
-        printf("version error\r\n");
-        return ESP_FAIL;
-    }
+//     ret = json_obj_get_string(&jctx, "ota_version", ota->ota_version,len);
+//      if (ret != ESP_OK) {
+//          user_ota.ota_status = VERSION_ERR;
+//         return ESP_FAIL;
+//     }
+//     printf("remote:%s---cur:%s\r\n",ota->ota_version,int_handle->fw_version);
+//     int n = sscanf(ota->ota_version, "%d.%d.%d",&R_Main_version,&R_feature_version,&R_fix_version);
+//     if(n!=3){
+//         user_ota.ota_status = VERSION_ERR;
+//         printf("version error\r\n");
+//         return ESP_FAIL;
+//     }
+//     n = sscanf(int_handle->fw_version, "%d.%d.%d",&C_Main_version,&C_feature_version,&C_fix_version);
+//     if(n!=3){
+//         user_ota.ota_status = VERSION_ERR;
+//         printf("version error\r\n");
+//         return ESP_FAIL;
+//     }
 
-    if(!strcmp(ota->ota_version,int_handle->fw_version)){
-        user_ota.ota_status = OTA_FINISH;
-        user_bind_report(OTA_UPDATE,APP_TYPE,ota->ota_version,true,"have update finish");
-        printf("have update finish\r\n");
-        ota->ota_in_progress = false;
-        return ESP_OK;
+//     if(!strcmp(ota->ota_version,int_handle->fw_version)){
+//         user_ota.ota_status = OTA_FINISH;
+//         user_bind_report(OTA_UPDATE,APP_TYPE,ota->ota_version,true,"have update finish");
+//         printf("have update finish\r\n");
+//         ota->ota_in_progress = false;
+//         return ESP_OK;
 
-    }else if(R_Main_version>C_Main_version){
-          update_flag=true;
-    }else if(R_Main_version==C_Main_version){
-            if(R_feature_version>C_feature_version){
-                update_flag=true;
-            }else if(R_feature_version==C_feature_version){
+//     }else if(R_Main_version>C_Main_version){
+//           update_flag=true;
+//     }else if(R_Main_version==C_Main_version){
+//             if(R_feature_version>C_feature_version){
+//                 update_flag=true;
+//             }else if(R_feature_version==C_feature_version){
 
-                if(R_fix_version>C_fix_version){
-                    update_flag=true;
-                }else{
-                    printf("update fail 3\r\n");
-                    user_ota.ota_status = VERSION_ERR;
-                    return ESP_FAIL;
-                }
-            }else{
-                printf("update fail 2\r\n");
-                user_ota.ota_status = VERSION_ERR;
-                return ESP_FAIL;
-            }
-    }
-    else{
-        printf("update fail 1\r\n");
-        user_ota.ota_status = VERSION_ERR;
-        return ESP_FAIL;
-    }
+//                 if(R_fix_version>C_fix_version){
+//                     update_flag=true;
+//                 }else{
+//                     printf("update fail 3\r\n");
+//                     user_ota.ota_status = VERSION_ERR;
+//                     return ESP_FAIL;
+//                 }
+//             }else{
+//                 printf("update fail 2\r\n");
+//                 user_ota.ota_status = VERSION_ERR;
+//                 return ESP_FAIL;
+//             }
+//     }
+//     else{
+//         printf("update fail 1\r\n");
+//         user_ota.ota_status = VERSION_ERR;
+//         return ESP_FAIL;
+//     }
 
-    if(update_flag == true){
-        update_flag=false;  
-        len = 0;
-        ret = json_obj_get_strlen(&jctx, "url", &len);
-        if (ret != ESP_OK) {
-            user_ota.ota_status = URL_ERR;
-            return ESP_FAIL;
-        }
-        len++; /* Increment for NULL character */
-        url = esp_cloud_mem_calloc(1, len);
-        if (!url) {
-             user_ota.ota_status = URL_MEM_ERR;
-             return ESP_FAIL;
-        }
-        json_obj_get_string(&jctx, "url", url, len);
-        ESP_LOGI(TAG, "URL: %s", url);
+//     if(update_flag == true){
+//         update_flag=false;  
+//         len = 0;
+//         ret = json_obj_get_strlen(&jctx, "url", &len);
+//         if (ret != ESP_OK) {
+//             user_ota.ota_status = URL_ERR;
+//             return ESP_FAIL;
+//         }
+//         len++; /* Increment for NULL character */
+//         url = esp_cloud_mem_calloc(1, len);
+//         if (!url) {
+//              user_ota.ota_status = URL_MEM_ERR;
+//              return ESP_FAIL;
+//         }
+//         json_obj_get_string(&jctx, "url", url, len);
+//         ESP_LOGI(TAG, "URL: %s", url);
 
-        json_parse_end(&jctx);
+//         json_parse_end(&jctx);
 
-        user_ota.ota_status = OTA_ING;
+//         user_ota.ota_status = OTA_ING;
 
-        esp_err_t err = ota->ota_cb((esp_cloud_ota_handle_t)ota, url, ota->ota_priv);
-        if (err == ESP_OK) {
-            user_ota.ota_status = OTA_FINISH;
-        }
-        ESP_LOGE(TAG, "Firmware Upgrades Failed");
-        user_ota.ota_status = OTA_FAIL;
-    }
+//         esp_err_t err = ota->ota_cb((esp_cloud_ota_handle_t)ota, url, ota->ota_priv);
+//         if (err == ESP_OK) {
+//             user_ota.ota_status = OTA_FINISH;
+//         }
+//         ESP_LOGE(TAG, "Firmware Upgrades Failed");
+//         user_ota.ota_status = OTA_FAIL;
+//     }
 
-    if (url) {
-        free(url);
-    }
-    json_parse_end(&jctx);
-    ota->ota_in_progress = false;
-    return ESP_OK;
-}
+//     if (url) {
+//         free(url);
+//     }
+//     json_parse_end(&jctx);
+//     ota->ota_in_progress = false;
+//     return ESP_OK;
+// }
 
-esp_cloud_internal_handle_t *int_app_handle;
-esp_err_t esp_cloud_ota_check(esp_cloud_handle_t handle, void *priv_data)
-{
-    char subscribe_topic[100]={0};
-    esp_cloud_internal_handle_t *int_handle = (esp_cloud_internal_handle_t *)handle;
-    int_app_handle = (esp_cloud_internal_handle_t *)handle;
-    snprintf(subscribe_topic, sizeof(subscribe_topic),"%s/%s", int_handle->device_id, OTAURL_TOPIC_SUFFIX);
+// esp_cloud_internal_handle_t *int_app_handle;
+// esp_err_t esp_cloud_ota_check(esp_cloud_handle_t handle, void *priv_data)
+// {
+//     char subscribe_topic[100]={0};
+//     esp_cloud_internal_handle_t *int_handle = (esp_cloud_internal_handle_t *)handle;
+//     int_app_handle = (esp_cloud_internal_handle_t *)handle;
+//     snprintf(subscribe_topic, sizeof(subscribe_topic),"%s/%s", int_handle->device_id, OTAURL_TOPIC_SUFFIX);
 
-    /* First unsubscribing, in case there is a stale subscription */
-    esp_cloud_platform_unsubscribe(int_handle, subscribe_topic);
-    esp_err_t err = esp_cloud_platform_subscribe(int_handle, subscribe_topic, ota_url_handler, priv_data);
-    if(err != ESP_OK) {
-        ESP_LOGE(TAG, "OTA URL Subscription Error %d", err);
-        return ESP_FAIL;
-    }
+//     /* First unsubscribing, in case there is a stale subscription */
+//     esp_cloud_platform_unsubscribe(int_handle, subscribe_topic);
+//     esp_err_t err = esp_cloud_platform_subscribe(int_handle, subscribe_topic, ota_url_handler, priv_data);
+//     if(err != ESP_OK) {
+//         ESP_LOGE(TAG, "OTA URL Subscription Error %d", err);
+//         return ESP_FAIL;
+//     }
 
-    alexa_and_user_config.ota_topic_sub_states = OTA_TOPIC_SUB_OK;
+//     dev_config.ota_topic_sub_states = OTA_TOPIC_SUB_OK;
 
-    uint8_t ota_flag = prov_hal.custom_config_storage_get_u8("OTA_F");
-    if(ota_flag == CUSTOM_INVALID){
-        prov_hal.custom_config_storage_set_u8("OTA_F",CUSTOM_INIT);
-        ESP_LOGI(TAG,"flag CUSTOM_INIT:%d\r\n",CUSTOM_INIT);
+    // uint8_t ota_flag = prov_hal.custom_config_storage_get_u8("OTA_F");
+    // if(ota_flag == CUSTOM_INVALID){
+    //     prov_hal.custom_config_storage_set_u8("OTA_F",CUSTOM_INIT);
+    //     ESP_LOGI(TAG,"flag CUSTOM_INIT:%d\r\n",CUSTOM_INIT);
 
-    }else if(ota_flag == OTA_FAIL){
-        user_bind_report(OTA_UPDATE,SERVER_TYPE,int_handle->fw_version,false,"Force fail");
-        prov_hal.custom_config_storage_set_u8("OTA_F",CUSTOM_INIT);
-        ESP_LOGI(TAG,"flag OTA_FAIL:%d\r\n",OTA_FAIL);
+    // }else if(ota_flag == OTA_FAIL){
+    //     user_bind_report(OTA_UPDATE,SERVER_TYPE,int_handle->fw_version,false,"Force fail");
+    //     prov_hal.custom_config_storage_set_u8("OTA_F",CUSTOM_INIT);
+    //     ESP_LOGI(TAG,"flag OTA_FAIL:%d\r\n",OTA_FAIL);
 
-    }else if(ota_flag == OTA_FINISH){
-        user_bind_report(OTA_UPDATE,SERVER_TYPE,int_handle->fw_version,true,"Force Finished Successfully");
-        prov_hal.custom_config_storage_set_u8("OTA_F",CUSTOM_INIT);
-        ESP_LOGI(TAG,"flag OTA_FINISH:%d\r\n",OTA_FINISH);
-    }
+    // }else if(ota_flag == OTA_FINISH){
+    //     user_bind_report(OTA_UPDATE,SERVER_TYPE,int_handle->fw_version,true,"Force Finished Successfully");
+    //     prov_hal.custom_config_storage_set_u8("OTA_F",CUSTOM_INIT);
+    //     ESP_LOGI(TAG,"flag OTA_FINISH:%d\r\n",OTA_FINISH);
+    // }
 
-    return err;                                                                                                                                                             
-}
+//     return err;                                                                                                                                                             
+// }
 
-esp_err_t app_publish_ota(char *url,int file_size,char * ota_version){
-    char publish_payload[600];
-    json_str_t jstr;
-    json_str_start(&jstr, publish_payload, sizeof(publish_payload), NULL, NULL);
-    json_start_object(&jstr);
-    json_obj_set_string(&jstr, "url",url);
-    json_obj_set_int(&jstr, "file_size", file_size);
-     json_obj_set_string(&jstr, "ota_version",ota_version);
-    json_end_object(&jstr);
-    json_str_end(&jstr);
-    char publish_topic[100]={0};
-    snprintf(publish_topic, sizeof(publish_topic), "%s/%s", int_app_handle->device_id, OTAURL_TOPIC_SUFFIX);
-    esp_err_t err = esp_cloud_platform_publish(int_app_handle, publish_topic, publish_payload);
-    if (err != ESP_OK) {                                                            
-        ESP_LOGE(TAG, "OTA Fetch Publish Error %d", err);
-    }
-    return err;  
-}
+
+// esp_err_t app_publish_ota(char *url,int file_size,char * ota_version){
+//     char publish_payload[600];
+//     json_str_t jstr;
+//     json_str_start(&jstr, publish_payload, sizeof(publish_payload), NULL, NULL);
+//     json_start_object(&jstr);
+//     json_obj_set_string(&jstr, "url",url);
+//     json_obj_set_int(&jstr, "file_size", file_size);
+//      json_obj_set_string(&jstr, "ota_version",ota_version);
+//     json_end_object(&jstr);
+//     json_str_end(&jstr);
+//     char publish_topic[100]={0};
+//     snprintf(publish_topic, sizeof(publish_topic), "%s/%s", int_app_handle->device_id, OTAURL_TOPIC_SUFFIX);
+//     esp_err_t err = esp_cloud_platform_publish(int_app_handle, publish_topic, publish_payload);
+//     if (err != ESP_OK) {                                                            
+//         ESP_LOGE(TAG, "OTA Fetch Publish Error %d", err);
+//     }
+//     return err;  
+// }
 
 
 #ifdef CONFIG_ESP_CLOUD_OTA_USE_DYNAMIC_PARAMS
