@@ -360,7 +360,7 @@ esp_err_t esp_cloud_platform_connect(esp_cloud_internal_handle_t *handle)
     while (SUCCESS != rc) {
         rc = aws_iot_shadow_init(&platform_data->mqttClient, &sp);
         ESP_LOGE(TAG, "aws_iot_shadow_init returned error %d, aborting...", rc);
-        vTaskDelay(1000 / portTICK_PERIOD_MS);
+        vTaskDelay(500 / portTICK_PERIOD_MS);
     }
 
     ShadowConnectParameters_t scp = ShadowConnectParametersDefault;
@@ -375,15 +375,17 @@ esp_err_t esp_cloud_platform_connect(esp_cloud_internal_handle_t *handle)
             ESP_LOGE(TAG, "Error(%d) connecting to %s:%d", rc, sp.pHost, sp.port);
             
             num++;
-            if(num>=15){
-                alexa_and_user_config.dev_lan_states = IOT_FAIL;
+            if(num>=2){
+
+                dev_config.dev_states = IOT_FAIL;
+                dev_config.iot_err = rc;
             }else{
-               alexa_and_user_config.dev_lan_states = IOT_ING;
+               dev_config.dev_states = IOT_ING;
             }
-            
-            vTaskDelay(1000 / portTICK_RATE_MS);
+             ESP_LOGE(TAG, "reconnecting to %s:%d %d",sp.pHost, sp.port,num);
+            vTaskDelay(500 / portTICK_RATE_MS);
         }else{
-            alexa_and_user_config.dev_lan_states = IOT_OK;
+            dev_config.dev_states = IOT_OK;
             num = 0;
             ESP_LOGI(TAG, "connecting to %s:%d",sp.pHost, sp.port);
         }
