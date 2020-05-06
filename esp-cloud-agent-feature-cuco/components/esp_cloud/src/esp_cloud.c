@@ -784,7 +784,6 @@ static void esp_cloud_task(void *param)
     }
 
     esp_cloud_platform_register_dynamic_params(handle);
-    esp_cloud_platform_report_state(handle);
 
     err = esp_cloud_alexa_sign_in_topic(handle,handle);
     if(err == ESP_OK){
@@ -796,9 +795,9 @@ static void esp_cloud_task(void *param)
         esp_cloud_handle_work_queue(handle);
         esp_cloud_platform_wait(handle);
 
-        if(dev_config.Wait_for_alexa_in == LOGED_IN){
+        if(dev_config.Wait_for_alexa_in == LOGED_IN2){
             esp_cloud_update_bool_param(esp_cloud_get_handle(), "alexa", true);
-            dev_config.Wait_for_alexa_in = LOGED_IN_NOTIVE;
+            dev_config.Wait_for_alexa_in = LOGED_IN_FINISH;
         }
 
         if(dev_config.Wait_for_alexa_out == NOT_LOG_OUT){
@@ -815,10 +814,10 @@ static void esp_cloud_task(void *param)
             }
         }
 
-        // if(dev_config.ota_topic_sub_states == OTA_TOPIC_SUB_FAIL){
-        //     esp_cloud_platform_connect(handle);
-        //     esp_cloud_ota_check(handle,NULL);
-        // }
+        if((dev_config.user_bind_flag == NOTICE_BINDED)||(dev_config.user_bind_flag == BINDED)){
+            esp_cloud_platform_report_state(handle);
+            dev_config.user_bind_flag = NOTICE_FINISH;
+        }
 
         if(user_ota.ota_status == OTA_INIT){
             user_ota.ota_status = OTA_START;
