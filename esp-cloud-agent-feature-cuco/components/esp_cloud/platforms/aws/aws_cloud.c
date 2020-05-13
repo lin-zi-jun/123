@@ -537,10 +537,20 @@ esp_err_t esp_cloud_platform_wait(esp_cloud_internal_handle_t *handle)
         if (NETWORK_ATTEMPTING_RECONNECT == rc || platform_data->shadowUpdateInProgress) {
            aws_iot_shadow_yield(&platform_data->mqttClient, 1000);
            vTaskDelay(pdMS_TO_TICKS(500));
+           if (NETWORK_ATTEMPTING_RECONNECT == rc ){
+               ESP_LOGW(TAG, "iot reconnect");
+               dev_config.iot_reconnect=IOT_RECONNECT;
+           }
             continue;
         }
+
+        if (dev_config.iot_reconnect == IOT_RECONNECT ){
+               ESP_LOGW(TAG, "iot connected");
+               dev_config.iot_reconnect=IOT_RECONNECT_FINISH;
+           }    
         break;
     }   
+
     platform_data->desired_count = 0;
     platform_data->reported_count = 0;
     int i;

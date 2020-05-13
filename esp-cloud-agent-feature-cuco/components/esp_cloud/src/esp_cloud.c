@@ -795,6 +795,11 @@ static void esp_cloud_task(void *param)
         esp_cloud_handle_work_queue(handle);
         esp_cloud_platform_wait(handle);
 
+        if(dev_config.iot_reconnect==IOT_RECONNECT_FINISH){
+            esp_cloud_update_bool_param(esp_cloud_get_handle(), "connected", true);
+            dev_config.iot_reconnect=IOT_RECONNECT_INIT;
+        }
+
         if(dev_config.Wait_for_alexa_in == LOGED_IN2){
             esp_cloud_update_bool_param(esp_cloud_get_handle(), "alexa", true);
             dev_config.Wait_for_alexa_in = LOGED_IN_FINISH;
