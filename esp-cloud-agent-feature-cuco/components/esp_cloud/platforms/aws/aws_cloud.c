@@ -533,7 +533,7 @@ esp_err_t esp_cloud_platform_wait(esp_cloud_internal_handle_t *handle)
     IoT_Error_t rc = SUCCESS;
     while (1) {
         rc = aws_iot_shadow_yield(&platform_data->mqttClient, 200);
-        vTaskDelay(pdMS_TO_TICKS(500));
+        vTaskDelay(pdMS_TO_TICKS(50));
         if (NETWORK_ATTEMPTING_RECONNECT == rc || platform_data->shadowUpdateInProgress) {
            aws_iot_shadow_yield(&platform_data->mqttClient, 1000);
            vTaskDelay(pdMS_TO_TICKS(500));
