@@ -662,7 +662,6 @@ static void alexa_sign_in_handler(const char *topic, void *payload, size_t paylo
             printf("cmd:%s-----------\r\n",p_cmd);
 
             if(!strcmp(p_cmd,"alexa_unbind_req")){
-                dev_config.Wait_for_alexa_out = NOT_LOG_OUT;
                 alexa_auth_delegate_signout();
                 printf("alexa_auth_delegate_signout\r\n");
                 return;
@@ -670,7 +669,6 @@ static void alexa_sign_in_handler(const char *topic, void *payload, size_t paylo
 
                 printf("recive alexa_bind_req\r\n");
                 if(dev_config.Wait_for_alexa_in == NOT_LOG_IN){
-                    printf("Wait_for_alexa_in\r\n");
                     ret = json_obj_get_object(&jctx,"data");
                     if (ret != 0) {
                         return;
