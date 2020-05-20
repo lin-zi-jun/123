@@ -532,14 +532,14 @@ esp_err_t esp_cloud_platform_wait(esp_cloud_internal_handle_t *handle)
     aws_cloud_platform_data_t *platform_data = handle->cloud_platform_priv;
     IoT_Error_t rc = SUCCESS;
     while (1) {
-        rc = aws_iot_shadow_yield(&platform_data->mqttClient, 200);
-        vTaskDelay(pdMS_TO_TICKS(1));
+        rc = aws_iot_shadow_yield(&platform_data->mqttClient, 50);
         if (NETWORK_ATTEMPTING_RECONNECT == rc || platform_data->shadowUpdateInProgress) {
-           aws_iot_shadow_yield(&platform_data->mqttClient, 1000);
-           vTaskDelay(pdMS_TO_TICKS(500));
+           aws_iot_shadow_yield(&platform_data->mqttClient, 50);
+           vTaskDelay(pdMS_TO_TICKS(50));
            if (NETWORK_ATTEMPTING_RECONNECT == rc ){
                ESP_LOGW(TAG, "iot reconnect");
                dev_config.iot_reconnect=IOT_RECONNECT;
+               vTaskDelay(pdMS_TO_TICKS(500));
            }
             continue;
         }
@@ -547,7 +547,8 @@ esp_err_t esp_cloud_platform_wait(esp_cloud_internal_handle_t *handle)
         if (dev_config.iot_reconnect == IOT_RECONNECT ){
                ESP_LOGW(TAG, "iot connected");
                dev_config.iot_reconnect=IOT_RECONNECT_FINISH;
-           }    
+           }   
+
         break;
     }   
 

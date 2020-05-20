@@ -801,6 +801,7 @@ static void esp_cloud_task(void *param)
         if(dev_config.Wait_for_alexa_in == LOGED_IN2){
             esp_cloud_update_bool_param(esp_cloud_get_handle(), "alexa", true);
             dev_config.Wait_for_alexa_in = LOGED_IN_FINISH;
+            // esp_restart();
         }
 
         if(dev_config.Wait_for_alexa_out == NOT_LOG_OUT){
