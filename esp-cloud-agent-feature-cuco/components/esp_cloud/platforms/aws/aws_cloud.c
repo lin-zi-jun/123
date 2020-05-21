@@ -519,6 +519,10 @@ void get_new_value(esp_cloud_param_val_t *param_val, jsonStruct_t *dynamic_param
         case CLOUD_PARAM_TYPE_BOOLEAN:
             * (bool *)dynamic_params->pData = param_val->val.b;
         break;
+
+         case CLOUD_PARAM_TYPE_STRING:
+            * (char *)dynamic_params->pData = param_val->val.s;
+        break;
         default:
             ESP_LOGE(TAG, "aws_get_new_param_val got invalid value type");
         break;

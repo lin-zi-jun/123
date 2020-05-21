@@ -358,7 +358,7 @@ esp_err_t esp_cloud_update_float_param(esp_cloud_handle_t handle, const char *na
 
 esp_err_t esp_cloud_update_string_param(esp_cloud_handle_t handle, const char *name, char *val)
 {
-    esp_cloud_dynamic_param_t *param = esp_cloud_get_dynamic_param_by_name_and_type(name, CLOUD_PARAM_TYPE_INTEGER);
+    esp_cloud_dynamic_param_t *param = esp_cloud_get_dynamic_param_by_name_and_type(name, CLOUD_PARAM_TYPE_STRING);
     if (param) {
         if (param->val.val.s) {
             free(param->val.val.s);
@@ -798,7 +798,7 @@ static void esp_cloud_task(void *param)
             dev_config.iot_reconnect=IOT_RECONNECT_INIT;
         }
 
-        if(dev_config.Wait_for_alexa_in == LOGED_IN2){
+        if((dev_config.Wait_for_alexa_in == LOGED_IN2)&&(user_ota.ota_status != OTA_STOP_FINISH)){
             esp_cloud_update_bool_param(esp_cloud_get_handle(), "alexa", true);
             dev_config.Wait_for_alexa_in = LOGED_IN_FINISH;
             // esp_restart();
@@ -828,6 +828,14 @@ static void esp_cloud_task(void *param)
             prov_hal.custom_config_storage_set_u8("OTA_F",OTA_START);
             ota_progress_start();
         }
+
+        if(user_ota.ota_status == OTA_STOP){
+            user_ota.ota_status = OTA_STOP_FINISH;
+            // esp_cloud_update_string_param(esp_cloud_get_handle(), "ota_version","");
+            // printf("%d",user_ota.ota_status);
+        }
+
+       
     }
 }
 
