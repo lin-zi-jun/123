@@ -662,10 +662,16 @@ static void alexa_sign_in_handler(const char *topic, void *payload, size_t paylo
             printf("cmd:%s-----------\r\n",p_cmd);
 
             if(!strcmp(p_cmd,"alexa_unbind_req")){
-                alexa_auth_delegate_signout();
-                printf("alexa_auth_delegate_signout\r\n");
+                if(dev_config.Wait_for_alexa_in == LOGED_IN_FINISH){
+                    alexa_auth_delegate_signout();
+                    ESP_LOGI(TAG, "alexa_signout\r\n");
+                }else{
+                    ESP_LOGI(TAG, "alexa is not sign in now\r\n");
+                }
+                
                 return;
             }else if(!strcmp(p_cmd,"alexa_req")){
+
 
                 printf("recive alexa_bind_req\r\n");
                 if(dev_config.Wait_for_alexa_in == NOT_LOG_IN){
