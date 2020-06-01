@@ -601,7 +601,6 @@ esp_err_t esp_cloud_report_alexa_sign_out_status(esp_cloud_internal_handle_t *ha
 }
 
 extern uint32_t app_to_current_val;
-extern int app_set_volume;
 char *ota_vertion = NULL;
 static void alexa_sign_in_handler(const char *topic, void *payload, size_t payload_len, void *priv_data)
 {
@@ -809,6 +808,12 @@ static void esp_cloud_task(void *param)
 
         if((dev_config.Wait_for_alexa_in == LOGED_IN2)){
             esp_cloud_update_bool_param(esp_cloud_get_handle(), "alexa", true);
+            if(volume_get(&n_v.volume)>=0){
+                volume_set(n_v.volume);
+            }else{
+                n_v.volume = 100;
+            }
+            esp_cloud_update_int_param(esp_cloud_get_handle(),"alexa_volume",n_v.volume);
             dev_config.Wait_for_alexa_in = LOGED_IN_FINISH;
             // esp_restart();
         }
