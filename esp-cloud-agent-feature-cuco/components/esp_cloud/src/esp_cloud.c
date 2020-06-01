@@ -39,6 +39,7 @@
 #include "va_led.h"
 #include "event_bit.h"
 #include "user_ota.h"
+#include "app_main.h"
 static const char *TAG = "esp_cloud";
 
 #define INFO_TOPIC_SUFFIX       "device/info"
@@ -794,7 +795,9 @@ static void esp_cloud_task(void *param)
         dev_config.app_topic_sub_states = APP_TOPIC_SUB_OK;
     }
 
-    bit_hal.app_aws_done_cb();  
+    bit_hal.app_aws_done_cb(); 
+    prov_config.net_statue = true;
+    led_timer_stop();
     while (!handle->cloud_stop) {
         esp_cloud_handle_work_queue(handle);
         esp_cloud_platform_wait(handle);

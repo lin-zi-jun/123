@@ -35,6 +35,7 @@
 #include "user_auth.h"
 #include "rom/crc.h"
 #include "app_prov_handlers.h"
+#include "app_main.h"
 // #include "production_test.h"
 #define MAX_LENGTH_OF_UPDATE_JSON_BUFFER 200
 #define AWS_TASK_STACK  12 * 1024
@@ -536,13 +537,13 @@ esp_err_t esp_cloud_platform_wait(esp_cloud_internal_handle_t *handle)
     aws_cloud_platform_data_t *platform_data = handle->cloud_platform_priv;
     IoT_Error_t rc = SUCCESS;
     while (1) {
-        rc = aws_iot_shadow_yield(&platform_data->mqttClient, 50);
+        rc = aws_iot_shadow_yield(&platform_data->mqttClient, 5);
         if (NETWORK_ATTEMPTING_RECONNECT == rc || platform_data->shadowUpdateInProgress) {
-           aws_iot_shadow_yield(&platform_data->mqttClient, 50);
-           vTaskDelay(pdMS_TO_TICKS(50));
+           aws_iot_shadow_yield(&platform_data->mqttClient, 5);
            if (NETWORK_ATTEMPTING_RECONNECT == rc ){
                ESP_LOGW(TAG, "iot reconnect");
                dev_config.iot_reconnect=IOT_RECONNECT;
+               led_timer_start();
                vTaskDelay(pdMS_TO_TICKS(500));
            }
             continue;
@@ -551,6 +552,8 @@ esp_err_t esp_cloud_platform_wait(esp_cloud_internal_handle_t *handle)
         if (dev_config.iot_reconnect == IOT_RECONNECT ){
                ESP_LOGW(TAG, "iot connected");
                dev_config.iot_reconnect=IOT_RECONNECT_FINISH;
+               prov_config.net_statue = true;
+               led_timer_stop();
            }   
 
         break;
