@@ -795,14 +795,14 @@ static void esp_cloud_task(void *param)
     }
 
     bit_hal.app_aws_done_cb(); 
-    prov_config.net_statue = true;
-    led_timer_stop();
+    net_disconnect_scan_stop();
+    // led_timer_stop();
     while (!handle->cloud_stop) {
         esp_cloud_handle_work_queue(handle);
         esp_cloud_platform_wait(handle);
 
         if(dev_config.iot_reconnect==IOT_RECONNECT_FINISH){
-            esp_cloud_update_bool_param(esp_cloud_get_handle(), "connected", true);
+            // esp_cloud_update_bool_param(esp_cloud_get_handle(), "connected", true);
             dev_config.iot_reconnect=IOT_RECONNECT_INIT;
         }
 

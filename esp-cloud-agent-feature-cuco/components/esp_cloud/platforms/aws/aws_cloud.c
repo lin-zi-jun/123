@@ -551,7 +551,8 @@ esp_err_t esp_cloud_platform_wait(esp_cloud_internal_handle_t *handle)
            if (NETWORK_ATTEMPTING_RECONNECT == rc ){
                ESP_LOGW(TAG, "iot reconnect");
                dev_config.iot_reconnect=IOT_RECONNECT;
-               led_timer_start();
+            //    led_timer_start();
+               net_disconnect_scan_start();
                vTaskDelay(pdMS_TO_TICKS(500));
            }
             continue;
@@ -560,8 +561,8 @@ esp_err_t esp_cloud_platform_wait(esp_cloud_internal_handle_t *handle)
         if (dev_config.iot_reconnect == IOT_RECONNECT ){
                ESP_LOGW(TAG, "iot connected");
                dev_config.iot_reconnect=IOT_RECONNECT_FINISH;
-               prov_config.net_statue = true;
-               led_timer_stop();
+               net_disconnect_scan_stop();
+            //    led_timer_stop();
            }   
 
         break;
