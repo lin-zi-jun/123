@@ -378,8 +378,8 @@ esp_err_t esp_cloud_platform_connect(esp_cloud_internal_handle_t *handle)
             num++;
             if(num>=2){
 
-                dev_config.dev_states = IOT_FAIL;
-                dev_config.iot_err = rc;
+                // dev_config.dev_states = IOT_FAIL;
+                // dev_config.iot_err = rc;
             }else{
                dev_config.dev_states = IOT_ING;
             }
