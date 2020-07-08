@@ -562,6 +562,7 @@ esp_err_t esp_cloud_platform_wait(esp_cloud_internal_handle_t *handle)
                ESP_LOGW(TAG, "iot connected");
                dev_config.iot_reconnect=IOT_RECONNECT_FINISH;
                net_disconnect_scan_stop();
+               va_led_set(LED_OFF);
             //    led_timer_stop();
            }   
 
