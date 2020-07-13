@@ -802,20 +802,19 @@ static void esp_cloud_task(void *param)
         esp_cloud_platform_wait(handle);
 
         if(dev_config.iot_reconnect==IOT_RECONNECT_FINISH){
-            // esp_cloud_update_bool_param(esp_cloud_get_handle(), "connected", true);
+            esp_cloud_update_bool_param(esp_cloud_get_handle(), "connected", true);
             dev_config.iot_reconnect=IOT_RECONNECT_INIT;
         }
 
         if((dev_config.Wait_for_alexa_in == LOGED_IN2)){
             esp_cloud_update_bool_param(esp_cloud_get_handle(), "alexa", true);
             if(volume_get(&n_v.volume)>=0){
-                volume_set(n_v.volume);
+                // volume_set(n_v.volume);
             }else{
                 n_v.volume = 100;
             }
             esp_cloud_update_int_param(esp_cloud_get_handle(),"alexa_volume",n_v.volume);
             dev_config.Wait_for_alexa_in = LOGED_IN_FINISH;
-            // esp_restart();
         }
 
         if(dev_config.Wait_for_alexa_out == NOT_LOG_OUT){
