@@ -841,6 +841,11 @@ static void esp_cloud_task(void *param)
             prov_hal.custom_config_storage_set_u8("OTA_F",OTA_START);
             ota_progress_start();
         }
+
+        if( prov_config.report_rssi){
+            prov_config.report_rssi = false;
+            esp_cloud_update_int_param(esp_cloud_get_handle(),"network",prov_config.rssi);
+        }
     }
 }
 
